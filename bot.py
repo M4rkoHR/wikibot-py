@@ -11,7 +11,7 @@ from discord.ext import commands
 from youtube_api import YoutubeDataApi
 from time import sleep
 
-with open('config.json') as config_file:
+with open('my_config.json') as config_file:
     config = json.load(config_file)
 token = config["discord_bot_token"]
 reddit = praw.Reddit(client_id=config["praw"]["client_id"],
