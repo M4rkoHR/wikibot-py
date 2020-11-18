@@ -156,14 +156,13 @@ async def d(ctx, *, string):
         return
     if str(string).lower() == 'backup':
         await ownerdm.send(file=discord.File('guild_language.pkl'))
-        await ownerdm.send(file=discord.File('jezik.pkl'))
+        await ownerdm.send(file=discord.File('wikipedia_language.pkl'))
         # await ownerdm.send(file=discord.File('kanali.pkl'))
         await ownerdm.send(file=discord.File('subsettings.pkl'))
         await ownerdm.send(file=discord.File('warns.pkl'))
         return
-    naredba = f"{str(string)}"
-    print(naredba)
-    await ctx.send(f'{naredba}')
+    command = f"{str(string)}"
+    await ctx.send(f'{command}')
 
 
 @client.command(aliases=['youtube'], brief='Searches YouTube for given query and returns link')
@@ -213,11 +212,10 @@ async def urban(ctx, *, query):
 async def urbanexample(ctx, *, query):
     urbandefinition = ud.define(query)
     for d in urbandefinition:
-        primjer = d.example
-        primjer = primjer.replace('[', '')
-        primjer = primjer.replace(']', '')
-        # print(primjer)
-        await ctx.send(f'{primjer}')
+        dexample = d.example
+        dexample = dexample.replace('[', '')
+        dexample = dexample.replace(']', '')
+        await ctx.send(f'{dexample}')
         break
 
 
