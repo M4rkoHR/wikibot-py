@@ -473,12 +473,12 @@ async def on_message(message):
         return
 
     for key in specific_responses_static:
-        if specific_responses_static[key] == message.content.lower():
+        if key == message.content.lower():
             await message.channel.send(specific_responses_static[key])
             return
 
     for key in specific_responses_dynamic:
-        if specific_responses_dynamic[key] in message.content.lower():
+        if key in message.content.lower():
             await message.channel.send(specific_responses_dynamic[key])
             return
 
