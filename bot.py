@@ -485,7 +485,7 @@ async def on_message(message):
             return
     if guild_language.setdefault(message.guild.id, False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je')):
         res = wolfram.query(message.content.lower().split(' je ')[1])
-        await message.channel.send(next(res.result).text)
+        await message.channel.send(next(res.results).text)
         return
     #dadbot
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(message.guild.id, False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not guild_language.setdefault(message.guild.id, False))) and check:
