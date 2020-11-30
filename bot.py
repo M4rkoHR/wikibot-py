@@ -483,12 +483,11 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(specific_responses_dynamic[key])
             return
-    if guild_language.setdefault(message.guild.id, False) and (message.lower().startswith('kolko je') or message.lower().startswith('koliko je')):
-        res = wolfram.query(message.lower().split(' je ')[1])
-        await message.channel.send(next(res.results).text)
+    if guild_language.setdefault(message.guild.id, False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je')):
+        res = wolfram.query(message.content.lower().split(' je ')[1])
+        await message.channel.send(next(res.result).text)
         return
     #dadbot
-    check = len(message.content) < 30
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(message.guild.id, False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not guild_language.setdefault(message.guild.id, False))) and check:
             await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(message.guild.id, False) else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
             return
