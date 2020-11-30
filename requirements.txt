@@ -4,3 +4,4 @@ prawcore>=1.5.0
 urbandictpy>=1.1
 wikipedia>=1.4.0
 youtube-data-api>=0.0.20
+wolframalpha>=4.1.0

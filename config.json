@@ -10,11 +10,12 @@
         "id" : 100000000000000000 //paste your discord account id here(of your own account) and DELETE THIS COMMENT!!! Needed for DM feedback from the bot, again, after you're done, DELETE THIS COMMENT
     },
     "youtube_api_key" : "your YouTube Data API key goes here",
+    "wolfram_api_key" : "your Wolfram API key goes here",
     "banned_subs" : ["banned_subreddit_1", "banned_subreddit_2"],
     "specific_responses_static" : {
-        "if message contains exactly this, not case sensitive" : "then bot will send this"
+        "if message contains exactly this, not case sensitive(type this in all lowercase)" : "then bot will send this"
     },
     "specific_responses_dynamic" : {
-        "if this string is included in the message" : "the bot will reply with this"
+        "if this string is included in the message(type this in all lowercase)" : "the bot will reply with this"
     }
 }

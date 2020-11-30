@@ -7,6 +7,7 @@ import urbandictionary as ud
 import wikipedia
 import time
 import json
+import wolframalpha
 from discord.ext import commands
 from youtube_api import YoutubeDataApi
 from time import sleep
@@ -21,6 +22,7 @@ autor = config["bot_owner"]["name"]
 banned_subs = config["banned_subs"]
 ownerid = config["bot_owner"]["id"]
 ytid = config["youtube_api_key"]
+wolfram = wolframalpha.Client(config["wolfram_api_key"])
 specific_responses_static = config["specific_responses_static"]
 specific_responses_dynamic = config["specific_responses_dynamic"]
 ownerdm = None # gets initialized to send messages to the bot owner later
@@ -481,7 +483,10 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(specific_responses_dynamic[key])
             return
-
+    if guild_language.setdefault(message.guild.id, False) and (message.lower().startswith('kolko je') or message.lower().startswith('koliko je')):
+        res = wolfram.query(message.lower().split(' je ')[1])
+        await message.channel.send(next(res.results).text)
+        return
     #dadbot
     check = len(message.content) < 30
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(message.guild.id, False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not guild_language.setdefault(message.guild.id, False))) and check:
