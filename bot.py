@@ -483,7 +483,7 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(specific_responses_dynamic[key])
             return
-    if guild_language.setdefault(message.guild.id, False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je')):
+    if guild_language.setdefault(message.guild.id, False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
         res = wolfram.query(message.content.lower().split(' je ')[1])
         await message.channel.send(next(res.results).text)
         return
