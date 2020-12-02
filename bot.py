@@ -493,6 +493,7 @@ async def on_message(message):
 
     # repeat messages
     if not message.content.startswith('?'):
+        Kanal = [None, None, None]
         print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
         if message.channel.id in kanali:
             Kanal = kanali.get(message.channel.id, [None, None, None])
