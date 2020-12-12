@@ -483,8 +483,8 @@ async def addresponsestatic(ctx, *, response):
     while key[0] == ' ':
         key = key[1:]
     while value[0] == ' ':
-        key = key[1:]
-    responses["static"].update({key, value})
+        value = value[1:]
+    responses["static"].update({key: value})
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
@@ -508,8 +508,8 @@ async def addresponsedynamic(ctx, *, response):
     while key[0] == ' ':
         key = key[1:]
     while value[0] == ' ':
-        key = key[1:]
-    responses["dynamic"].update({key, value})
+        value = value[1:]
+    responses["dynamic"].update({key: value})
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
