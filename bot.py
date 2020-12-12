@@ -14,7 +14,7 @@ from time import sleep
 with open('my_config.json') as config_file:
     config = json.load(config_file)
 with open('responses.json') as responses_file:
-    responses = json.load(config_file)
+    responses = json.load(responses_file)
 token = config["discord_bot_token"]
 reddit = praw.Reddit(client_id=config["praw"]["client_id"],
                      client_secret=config["praw"]["client_secret"],
