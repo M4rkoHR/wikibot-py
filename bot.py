@@ -13,6 +13,8 @@ from time import sleep
 
 with open('my_config.json') as config_file:
     config = json.load(config_file)
+with open('responses.json') as responses_file:
+    responses = json.load(config_file)
 token = config["discord_bot_token"]
 reddit = praw.Reddit(client_id=config["praw"]["client_id"],
                      client_secret=config["praw"]["client_secret"],
@@ -160,6 +162,7 @@ async def d(ctx, *, string):
         # await ownerdm.send(file=discord.File('kanali.json'))
         await ownerdm.send(file=discord.File('subsettings.json'))
         await ownerdm.send(file=discord.File('warns.json'))
+        await ownerdm.send(file=discord.File('responses.json'))
         return
     command = f"{str(string)}"
     await ctx.send(f'{command}')
@@ -464,6 +467,56 @@ async def ping(ctx):
     embed.set_author(name='Pong!', icon_url='https://cdn.discordapp.com/attachments/601676952134221845/748535727389671444/toilet.gif') #spinning toilet
     await ctx.send(embed=embed)
 
+@client.command(aliases=['ars'], brief='Add a static response')
+async def addresponsestatic(ctx, *, response):
+    kaomod=False
+    for role in ctx.author.roles:
+        if role.id == 694533853951295590:
+            kaomod=True
+    if not kaomod:
+        if ctx.author.guild_permissions.manage_messages:
+            kaomod=True
+        if ctx.message.author.id == ownerid:
+            kaomod=True
+    if not kaomod:
+        await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
+        return
+    key, value = response.lower().split(';')
+    while key[0] == ' ':
+        key = key[1:]
+    while value[0] == ' ':
+        key = key[1:]
+    responses["static"].update({key, value})
+    with open('responses.json', 'w') as json_file:
+            json.dump(responses, json_file)
+    await ownerdm.send(file=discord.File('responses.json'))
+    await ctx.send(f'Dodan statički odgovor `{value}` na `{key}`' if guild_language.setdefault(str(ctx.guild.id), False) else f'Added a static response `{value}` to `{key}`')
+
+@client.command(aliases=['ard'], brief='Add a dynamic response')
+async def addresponsedynamic(ctx, *, response):
+    kaomod=False
+    for role in ctx.author.roles:
+        if role.id == 694533853951295590:
+            kaomod=True
+    if not kaomod:
+        if ctx.author.guild_permissions.manage_messages:
+            kaomod=True
+        if ctx.message.author.id == ownerid:
+            kaomod=True
+    if not kaomod:
+        await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
+        return
+    key, value = response.lower().split(';')
+    while key[0] == ' ':
+        key = key[1:]
+    while value[0] == ' ':
+        key = key[1:]
+    responses["dynamic"].update({key, value})
+    with open('responses.json', 'w') as json_file:
+            json.dump(responses, json_file)
+    await ownerdm.send(file=discord.File('responses.json'))
+    await ctx.send(f'Dodan dinamički odgovor `{value}` na `{key}`' if guild_language.setdefault(str(ctx.guild.id), False) else f'Added a dynamic response `{value}` to `{key}`')
+
 
 @client.event
 async def on_message(message):
@@ -472,15 +525,16 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    for key in specific_responses_static:
+    for key in responses["static"]:
         if key == message.content.lower():
-            await message.channel.send(specific_responses_static[key])
+            await message.channel.send(responses["static"][key])
             return
 
-    for key in specific_responses_dynamic:
+    for key in responses["dynamic"]:
         if key in message.content.lower():
-            await message.channel.send(specific_responses_dynamic[key])
+            await message.channel.send(responses["dynamic"][key])
             return
+
     if guild_language.setdefault(str(message.guild.id), False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
         res = wolfram.query(message.content.lower().split(' je ')[1])
         await message.channel.send(next(res.results).text)

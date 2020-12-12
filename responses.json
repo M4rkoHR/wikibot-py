@@ -1,0 +1,8 @@
+{
+    "static" : {
+        "if message contains exactly this, not case sensitive(type this in all lowercase)" : "then bot will send this"
+    },
+    "dynamic" : {
+        "if this string is included in the message(type this in all lowercase)" : "the bot will reply with this"
+    }
+}
