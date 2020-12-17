@@ -180,7 +180,7 @@ async def wiki(ctx, *, query):
     try:
         wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), "en")))
     except:
-        wikipedia.set_lang("en")
+        wikipedia.set_lang("hr" if guild_language.setdefault(str(ctx.guild.id), False) else "en")
     finally:
         await ctx.send(f'{wikipedia.summary(query, sentences=3)}')
 
