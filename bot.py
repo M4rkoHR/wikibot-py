@@ -15,6 +15,8 @@ with open('my_config.json') as config_file:
     config = json.load(config_file)
 with open('responses.json') as responses_file:
     responses = json.load(responses_file)
+with open('languages.json') as languages_file:
+    languages = json.load(languages_file)
 token = config["discord_bot_token"]
 reddit = praw.Reddit(client_id=config["praw"]["client_id"],
                      client_secret=config["praw"]["client_secret"],
@@ -25,8 +27,7 @@ ownerid = config["bot_owner"]["id"]
 ytid = config["youtube_api_key"]
 wolfram = wolframalpha.Client(config["wolfram_api_key"])
 ownerdm = None # gets initialized to send messages to the bot owner later
-defaultlang = "en"
-defaultlg = wikipedia.languages()[defaultlang]
+default_lang = "en"
 wikipedia_language = {}
 kanali = {}
 answered = {}
@@ -117,9 +118,9 @@ async def on_ready():
         await ownerdm.send('Exception, generating new guild_language.json')
         for guild in client.guilds:
             if guild.id == 601663624175419412:
-                guild_language.update({str(guild.id): True})
+                guild_language.update({str(guild.id): "hr"})
             else:
-                guild_language.update({str(guild.id): False})
+                guild_language.update({str(guild.id): default_lang})
         with open('guild_language.json', 'w') as json_file:
             json.dump(guild_language, json_file)
     try:
@@ -152,7 +153,7 @@ async def on_ready():
 @client.command(brief='debug command')
 async def d(ctx, *, string):
     if ctx.message.author.id != ownerid:
-        await ctx.send(f'You are not {autor}')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["not_author"].format(author=autor))
         return
     if str(string).lower() == 'backup':
         await ownerdm.send(file=discord.File('guild_language.json'))
@@ -178,26 +179,28 @@ async def yt(ctx, *, query):
 @client.command(aliases=['wikipedia'], brief='Searches Wikipedia for given query in desired language(?wikilang)', description='Searches Wikipedia for given query in desired language(default english, changed with ?wikilang) and returns 3 sentences from summary')
 async def wiki(ctx, *, query):
     try:
-        wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), "en")))
+        wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), default_lang)))
     except:
-        wikipedia.set_lang("hr" if guild_language.setdefault(str(ctx.guild.id), False) else "en")
+        wikipedia.set_lang(guild_language.setdefault(str(ctx.guild.id), "en"))
     finally:
         await ctx.send(f'{wikipedia.summary(query, sentences=3)}')
 
 
 @client.command(brief='Changes language for Wikipedia search PER USER')
 async def wikilang(ctx, language):
+    defaultlang = guild_language.setdefault(str(ctx.guild.id), "en")
+    defaultlg = wikipedia.languages()[defaultlang]
     query=language
     if query in wikipedia.languages():
         wikipedia_language.update({str(ctx.message.author.id): str(query)})
         lg = wikipedia.languages()[query]
-        await ctx.send(f'Vas jezik za Wikipediju je uspješno postavljen u \"{query}\" - {lg}' if guild_language.setdefault(str(ctx.guild.id), False) else f'Your Wikipedia language has been successfully set to \"{query}\" - {lg}')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_success"].format(query=query, lg=lg))
     else:
         if guild_language.setdefault(str(ctx.guild.id), False):
             wikipedia_language.update({str(ctx.message.author.id): str("hr")})
         else:
             wikipedia_language.update({str(ctx.message.author.id): str(defaultlang)})
-        await ctx.send(f'Pogreska! Vas jezik Wikipedije je prema zadanom \"hr\" - hrvatski' if guild_language.setdefault(str(ctx.guild.id), False) else f'Error! Your Wikipedia language is by default \"{defaultlang}\" - {defaultlg}')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_error"].format(defaultlang=defaultlang, defaultlg=defaultlg))
     with open('wikipedia_language.json', 'w') as json_file:
         json.dump(wikipedia_language, json_file)
 
@@ -222,9 +225,7 @@ async def urbanexample(ctx, *, query):
 
 @client.command(aliases=['bebacekic'], brief='Warns user for their inappropriate behavior')
 async def babyhammer(ctx, *, user):
-    query=user
-    await ctx.send(f'+warn {query} slijedeci put kad ovako nesto postas ovdje pobrat ces ban, doslovce se vidi da je netko umro' if guild_language.setdefault(str(ctx.guild.id), False) else f'+warn {query} next time you send something like this here you\'ll catch a ban, you can literally see someone has died')
-
+    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["babyhammer"].format(user=user))
 
 @client.command(aliases=['8ball'], brief='Magic 8 Ball... also ?8ball')
 async def magic8ball(ctx, *, question):
@@ -233,7 +234,7 @@ async def magic8ball(ctx, *, question):
     global answered
     alreadyanswered = answered.setdefault(str(ctx.message.author.id), ["a", "b"])
     if query.lower() in alreadyanswered:
-        await ctx.send(f'Već sam ti odgovorio na to pitanje...' if guild_language.setdefault(str(ctx.guild.id), False) else f'I\'ve already answered that question...')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["already_answered"])
     else:
         answer = random.choice(odgovori if guild_language.setdefault(str(ctx.guild.id), False) else answers)
         for i in range(10, 15):
@@ -248,7 +249,7 @@ async def magic8ball(ctx, *, question):
 @client.command(aliases=['cp', 'cropasta', 'pasta'], brief='Searches copy|cropasta for given query')
 async def copypasta(ctx, *, query):
     maxlength=2000
-    for submission in reddit.subreddit("cropasta" if guild_language.setdefault(str(ctx.guild.id), False) else "copypasta").search(query):
+    for submission in reddit.subreddit("cropasta" if guild_language.setdefault(str(ctx.guild.id), default_lang)=="hr" else "copypasta").search(query):
         textpost=submission.selftext
         while len(textpost)>maxlength:
             await ctx.send(textpost[:maxlength])
@@ -266,20 +267,20 @@ async def hot(ctx, *, subreddit=None):
             sub = str(subsettings[str(ctx.message.author.id)])
             print(f'{ctx.message.author.id}: {str(subsettings[str(ctx.message.author.id)])}')
         except:
-            await ctx.send("Niste postavili zadani subreddit(komandom ?hotsource|memesource) za korištenje sa praznom ?hot naredbom" if guild_language.setdefault(str(ctx.guild.id), False) else "You have not set a default subreddit(using command ?hotsource|memesource) to use with an empty ?hot command")
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_not_set"])
             return
     else:
         sub = query.replace(' ', '')
         if sub.startswith("r/"):
             sub=sub[2:]
-    for banan in banned_subs:
-        if banan in sub:
-            await ctx.send(f'{banan} te napravio' if guild_language.setdefault(str(ctx.guild.id), False) else f'{banan} is forbidden')
+    for banned in banned_subs:
+        if banned in sub:
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["banned_sub"].format(banned=banned))
             return
     subreddit = reddit.subreddit(sub)
     if subreddit.over18:
         if not ctx.channel.nsfw:
-            await ctx.send("NSFW Subreddit, aborting...")
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["nsfw_sub"])
             return
     for submission in subreddit.random_rising():
         if not submission.is_self:
@@ -302,16 +303,16 @@ async def memesource(ctx, *, subreddit):
         if reddit.subreddit(sub).over18:
             pass
         subsettings.update({str(ctx.message.author.id): str(query)})
-        await ctx.send(f'Vaš preferirani subreddit za praznu ?hot|meme naredbu je postavljen u {sub}' if guild_language.setdefault(str(ctx.guild.id), False) else f'Your preferred subreddit for an empty ?hot|meme command has been set to {sub}')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_success"].format(sub=sub))
     except:
-        await ctx.send('Subreddit nije pronađen' if guild_language.setdefault(str(ctx.guild.id), False) else 'Subreddit not found')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_fail"])
     with open('subsettings.json', 'w') as json_file:
         json.dump(subsettings, json_file)
 
 
 @client.command(aliases=['tkojepitao', 'tkojepito'], brief='Nobody asked')
 async def whoasked(ctx):
-    await ctx.send("**Sada svira**: Tko je pitao? (Feat: Nitko) ───────────:white_circle:────── ◄◄⠀▐▐⠀►► 𝟸:𝟷𝟾 / 𝟹:𝟻𝟼⠀───○ :loud_sound:" if guild_language.setdefault(str(ctx.guild.id), False) else "**Now playing**: Who asked? (Feat: Nobody) ───────────:white_circle:────── ◄◄⠀▐▐⠀►► 𝟸:𝟷𝟾 / 𝟹:𝟻𝟼⠀───○ :loud_sound:")
+    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["who_asked"])
 
 
 @client.command(aliases=['garand'], brief='It\'s a garand ping...')
@@ -320,17 +321,17 @@ async def m1garand(ctx):
 
 
 @client.command(aliases=['changelanguage'], brief='Debug command')
-async def changelang(ctx):
-    if ctx.message.author.id != ownerid:
-        await ctx.send(f'You are not Bot Owner')
-        return
+async def changelang(ctx, language=None):
     global guild_language
-    if guild_language.setdefault(str(ctx.guild.id), False):
-        guild_language[str(ctx.guild.id)] = False
-        await ctx.send("Bot language has been changed to English")
-    else:
-        guild_language[str(ctx.guild.id)] = True
-        await ctx.send("Jezik bota je promijenjen u Hrvatski")
+    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
+        return
+    if language in languages:
+        guild_language[str(ctx.guild.id)] = str(language)
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["language_change"])
+    if language == None:
+        guild_language[str(ctx.guild.id)] = "hr"*(guild_language[str(ctx.guild.id)]=="en")+"en"*(guild_language[str(ctx.guild.id)]=="hr")
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["language_change"])
     try:
         with open('guild_language.json', 'w') as json_file:
                 json.dump(guild_language, json_file)
@@ -346,12 +347,12 @@ async def warn(ctx, *, args):
     try:
         person, reason = args.split('>', maxsplit=1)
         if reason == '':
-            await ctx.send(f'Molimo odredite razlog upozorenja' if guild_language.setdefault(str(ctx.guild.id), False) else f'Please specify a reason')
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_reason"])
             return
         while reason[0] == ' ':
             reason=reason[1:]
     except:
-        await ctx.send(f'Nisi spomenuo korisnika u poruci, pokusaj ponovo' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message, try again...')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_user"])
         return
     for role in ctx.author.roles:
         if role.id == 694533853951295590:
@@ -362,12 +363,12 @@ async def warn(ctx, *, args):
         if ctx.message.author.id == ownerid:
             kaomod=True
     if not kaomod:
-        await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     try:
-        ime = ctx.message.mentions[0].name + "#" + ctx.message.mentions[0].discriminator
+        ime = f'{ctx.message.mentions[0].name}#{ctx.message.mentions[0].discriminator}'
     except:
-        await ctx.send(f'Nisi spomenuo korisnika u poruci, pokusaj ponovo' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message, try again...')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_user"])
         return
     userid=ctx.message.mentions[0].id
     try:
@@ -377,8 +378,8 @@ async def warn(ctx, *, args):
     finally:
         warnovi.append(reason)
         userwarns.update({str(userid): warnovi})
-        await ctx.send(f':white_check_mark: Korisnik **{ime}** je upozoren iz razloga:\n{reason}' if guild_language.setdefault(str(ctx.guild.id), False) else f':white_check_mark: User **{ime}** has been warned for:\n{reason}')
-        await client.get_user(userid).send(f'Upozoreni ste u ste u serveru **{ctx.guild.name}** iz razloga:\n{reason}' if guild_language.setdefault(str(ctx.guild.id), False) else f'You were warned in **{ctx.guild.name}** because of the following reason:\n{reason}')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["warn_success"].format(ime=ime, reason=reason))
+        await client.get_user(userid).send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["warned"].format(guild_name=ctx.guild.name, reason=reason))
         with open('warns.json', 'w') as json_file:
             json.dump(userwarns, json_file)
 
@@ -397,10 +398,10 @@ async def warns(ctx, *, user=None):
                 if not warnovi == '':
                     await ctx.send(f'```{warnovi}```')
                 else:
-                    await ctx.send(f'Nemate upozorenja :blush:' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have any warnings :blush:')
+                    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["no_warnings"])
                     return
             except:
-                await ctx.send(f'Nemate upozorenja :blush:' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have any warnings :blush:')
+                await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["no_warnings"])
                 return
             return
     try:
@@ -409,9 +410,9 @@ async def warns(ctx, *, user=None):
         if not warnovi == '':
             await ctx.send(f'```{warnovi}```')
         else:
-            await ctx.send(f'Nisi spomenuo korisnika u poruci ili korisnik nema upozorenja' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message or the user has not yet been warned')
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["no_warnings_or_user_not_mentioned"])
     except:
-        await ctx.send(f'Nisi spomenuo korisnika u poruci ili korisnik nema upozorenja' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message or the user has not yet been warned')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["no_warnings_or_user_not_mentioned"])
 
 @client.command(aliases=['deletewarns'], brief='Clears warnings for given user')
 async def clearwarns(ctx, *, user):
@@ -425,15 +426,16 @@ async def clearwarns(ctx, *, user):
         if ctx.message.author.id == ownerid:
             kaomod=True
     if not kaomod:
-        await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     try:
         userid=ctx.message.mentions[0].id
         userwarns.pop(str(userid))
     except:
-        await ctx.send(f'Nisi spomenuo korisnika u poruci, pokusaj ponovo' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message, try again...')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_user"])
         return
-    await ctx.send(f':white_check_mark: Korisniku **{ctx.message.mentions[0].name}#{ctx.message.mentions[0].discriminator}** su obrisana upozorenja' if guild_language.setdefault(str(ctx.guild.id), False) else f':white_check_mark: **{ctx.message.mentions[0].name}#{ctx.message.mentions[0].discriminator}\'s** warns have been deleted')
+    warned_user = f'{ctx.message.mentions[0].name}#{ctx.message.mentions[0].discriminator}'
+    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["clearwarns_success"].format(user=warned_user))
     with open('warns.json', 'w') as json_file:
             json.dump(userwarns, json_file)
 
@@ -441,9 +443,9 @@ async def clearwarns(ctx, *, user):
 async def welcome(ctx, *, user):
     try:
         userid=ctx.message.mentions[0].id
-        await ctx.send(f'<@!{userid}> dobrodošao imaš u <#601676952134221845> korisne komande u pinned messages, uživaj' if guild_language.setdefault(str(ctx.guild.id), False) else f'<@!{userid}>, Welcome!')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["welcome"].format(userid=userid))
     except:
-        await ctx.send(f'Nisi spomenuo korisnika u poruci' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned an user in your message')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_user"])
 
 
 @client.command(aliases=['message'], brief='Mod command')
@@ -452,12 +454,12 @@ async def send(ctx, channel, *, message):
         kanal = ctx.message.channel_mentions[0]
         await kanal.send(f'{message}')
     except:
-        await ctx.send(f'Nisi spomenuo kanal u poruci' if guild_language.setdefault(str(ctx.guild.id), False) else f'You haven\'t mentioned a channel in your message')
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_channel"])
 
 
 @client.command(aliases=['checklang'], brief='Check current Discord server language')
 async def lang(ctx):
-    await ctx.send('Language is: HR' if guild_language.setdefault(str(ctx.guild.id), False) else 'Language is: EN') #return guild's language
+    await ctx.send(f'Language is: {guild_language[str(ctx.guild.id)].upper()}') #return guild's language
 
 @client.command(aliases=['latency'], brief='Check bot latency')
 async def ping(ctx):
@@ -477,7 +479,7 @@ async def addresponsestatic(ctx, *, response):
         if ctx.message.author.id == ownerid:
             kaomod=True
     if not kaomod:
-        await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
+        await ctx.send(languages[str(ctx.guild.id)])
         return
     key, value = response.lower().split(';')
     while key[0] == ' ':
@@ -488,7 +490,7 @@ async def addresponsestatic(ctx, *, response):
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
-    await ctx.send(f'Dodan statički odgovor `{value}` na `{key}`' if guild_language.setdefault(str(ctx.guild.id), False) else f'Added a static response `{value}` to `{key}`')
+    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_added"].format(value=value, key=key))
 
 @client.command(aliases=['ard'], brief='Add a dynamic response')
 async def addresponsedynamic(ctx, *, response):
@@ -513,7 +515,7 @@ async def addresponsedynamic(ctx, *, response):
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
-    await ctx.send(f'Dodan dinamički odgovor `{value}` na `{key}`' if guild_language.setdefault(str(ctx.guild.id), False) else f'Added a dynamic response `{value}` to `{key}`')
+    await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_added"].format(value=value, key=key))
 
 
 @client.event
@@ -533,13 +535,13 @@ async def on_message(message):
             await message.channel.send(responses["dynamic"][key])
             return
 
-    if guild_language.setdefault(str(message.guild.id), False) and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
+    if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
         res = wolfram.query(message.content.lower().split(' je ')[1])
         await message.channel.send(next(res.results).text)
         return
     #dadbot
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(str(message.guild.id), False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not guild_language.setdefault(str(message.guild.id), False))) and check:
-            await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(str(message.guild.id), False) else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
+            await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
             return
 
 
