@@ -1,15 +1,16 @@
-import random
 import re
-import discord
-import praw
-import urbandictionary as ud
-import wikipedia
 import time
+import praw
 import json
+import random
+import discord
+import wikipedia
 import wolframalpha
+from time import sleep
+import urbandictionary as ud
 from discord.ext import commands
 from youtube_api import YoutubeDataApi
-from time import sleep
+from db_interface import backup, restore
 
 with open('my_config.json') as config_file:
     config = json.load(config_file)
@@ -25,6 +26,7 @@ autor = config["bot_owner"]["name"]
 banned_subs = config["banned_subs"]
 ownerid = config["bot_owner"]["id"]
 ytid = config["youtube_api_key"]
+use_postgres = config["use_postgres"]
 wolfram = wolframalpha.Client(config["wolfram_api_key"])
 ownerdm = None # gets initialized to send messages to the bot owner later
 default_lang = "en"
@@ -91,6 +93,7 @@ async def on_ready():
     await client.change_presence(activity=discord.Game(name='type ?help for help'))
     global ownerdm
     ownerdm = client.get_user(ownerid)
+    if use_postgres: restore()
     await ownerdm.send('Generating kanali{}')
     for guild in client.guilds:
         for channel in guild.channels:
@@ -147,6 +150,7 @@ async def on_ready():
     except:
         await ownerdm.send('warns.json not found')
     await ownerdm.send('Done')
+    if use_postgres: backup()
     print("Done")
 
 
@@ -203,6 +207,7 @@ async def wikilang(ctx, language):
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_error"].format(defaultlang=defaultlang, defaultlg=defaultlg))
     with open('wikipedia_language.json', 'w') as json_file:
         json.dump(wikipedia_language, json_file)
+    if use_postgres: backup()
 
 
 @client.command(aliases=['urbandefinition'], brief='Gives a definition for a given query from urban dictionary')
@@ -308,6 +313,7 @@ async def memesource(ctx, *, subreddit):
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_fail"])
     with open('subsettings.json', 'w') as json_file:
         json.dump(subsettings, json_file)
+    if use_postgres: backup()
 
 
 @client.command(aliases=['tkojepitao', 'tkojepito'], brief='Nobody asked')
@@ -338,6 +344,7 @@ async def changelang(ctx, language=None):
         await ownerdm.send('guild_language.json updated')
     except:
         await ownerdm.send('guild_language.json update error')
+    if use_postgres: backup()
 
 
 @client.command(aliases=['banaj', 'banuj'], brief='A definetly real warn command')
@@ -382,6 +389,7 @@ async def warn(ctx, *, args):
         await client.get_user(userid).send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["warned"].format(guild_name=ctx.guild.name, reason=reason))
         with open('warns.json', 'w') as json_file:
             json.dump(userwarns, json_file)
+        if use_postgres: backup()
 
 
 @client.command(aliases=['warnovi'], brief='Lists warnings for given user')
@@ -437,7 +445,8 @@ async def clearwarns(ctx, *, user):
     warned_user = f'{ctx.message.mentions[0].name}#{ctx.message.mentions[0].discriminator}'
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["clearwarns_success"].format(user=warned_user))
     with open('warns.json', 'w') as json_file:
-            json.dump(userwarns, json_file)
+        json.dump(userwarns, json_file)
+    if use_postgres: backup()
 
 @client.command(aliases=['dobrodosao', 'willkommen'], brief='Welcomes the user')
 async def welcome(ctx, *, user):
@@ -491,6 +500,7 @@ async def addresponsestatic(ctx, *, response):
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_added"].format(value=value, key=key))
+    if use_postgres: backup()
 
 @client.command(aliases=['ard'], brief='Add a dynamic response')
 async def addresponsedynamic(ctx, *, response):
@@ -516,6 +526,7 @@ async def addresponsedynamic(ctx, *, response):
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_added"].format(value=value, key=key))
+    if use_postgres: backup()
 
 
 @client.event
