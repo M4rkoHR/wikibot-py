@@ -31,7 +31,7 @@ wolfram = wolframalpha.Client(config["wolfram_api_key"])
 ownerdm = None # gets initialized to send messages to the bot owner later
 default_lang = "en"
 wikipedia_language = {}
-kanali = {}
+message_history = {}
 answered = {}
 subsettings = {}
 userwarns = {}
@@ -94,21 +94,21 @@ async def on_ready():
     global ownerdm
     ownerdm = client.get_user(ownerid)
     if use_postgres: restore()
-    await ownerdm.send('Generating kanali{}')
+    await ownerdm.send('Generating message_history{}')
     for guild in client.guilds:
         for channel in guild.channels:
             if str(channel.type) == "text":
-                kanali.update({channel.id: [None, None, None]})
+                message_history.update({channel.id: [None, None, None]})
                 counter=0
                 try:
                     async for message in channel.history(limit=3):
-                        kanali[channel.id][counter]=message.content
+                        message_history[channel.id][counter]=message.content
                         print(message.content)
                         counter += 1
                 except discord.NoMoreItems:
                     print("No more items")
                 except:
-                    kanali.update({channel.id: [None, None, None]})
+                    message_history.update({channel.id: [None, None, None]})
                     print("Exception")
     try:
         global guild_language
@@ -162,7 +162,7 @@ async def d(ctx, *, string):
     if str(string).lower() == 'backup':
         await ownerdm.send(file=discord.File('guild_language.json'))
         await ownerdm.send(file=discord.File('wikipedia_language.json'))
-        # await ownerdm.send(file=discord.File('kanali.json'))
+        # await ownerdm.send(file=discord.File('message_history.json'))
         await ownerdm.send(file=discord.File('subsettings.json'))
         await ownerdm.send(file=discord.File('warns.json'))
         await ownerdm.send(file=discord.File('responses.json'))
@@ -460,9 +460,27 @@ async def welcome(ctx, *, user):
 @client.command(aliases=['message'], brief='Mod command')
 async def send(ctx, channel, *, message):
     try:
-        kanal = ctx.message.channel_mentions[0]
-        await kanal.send(f'{message}')
+        target_channel = ctx.message.channel_mentions[0]
+        await target_channel.send(f'{message}')
     except:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_channel"])
+
+@client.command(aliases=['ap'], brief='Mod command')
+async def archivepins(ctx, channel_1=None, channel_2=None):
+    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
+        return
+    if ctx.message.channel_mentions:
+        channel1 = ctx.message.channel_mentions[0]
+        channel2 = ctx.message.channel_mentions[1]
+        pins = await channel1.pins()
+        for pin in pins:
+            text_message="> {message}".format(message=pin.content.replace("\n", "\n> "))
+            if not pin.attachments:
+                await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
+            else:
+                await channel2.send("By <@!{userid}>\n{message}\n{attachment}".format(userid=pin.author.id, message=text_message, attachment=pin.attachments[0].url))
+    else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_channel"])
 
 
@@ -531,7 +549,7 @@ async def addresponsedynamic(ctx, *, response):
 
 @client.event
 async def on_message(message):
-    global kanali
+    global message_history
     check = len(message.content) < 30
     if message.author == client.user:
         return
@@ -558,26 +576,26 @@ async def on_message(message):
 
     # repeat messages
     if not message.content.startswith('?'):
-        Kanal = [None, None, None]
+        Channel = [None, None, None]
         print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
-        if message.channel.id in kanali:
-            Kanal = kanali.get(message.channel.id, [None, None, None])
-        if Kanal == [None, None, None]:
+        if message.channel.id in message_history:
+            Channel = message_history.get(message.channel.id, [None, None, None])
+        if Channel == [None, None, None]:
             counter=0
             try:
                 async for message in client.get_channel(id).history(limit=3):
-                    kanali[message.guild.id][counter]=message.content
+                    message_history[message.guild.id][counter]=message.content
                     counter += 1
             except discord.NoMoreItems:
                 print("Eol 546")
             except:
                 print("Exception 548")
-        Kanal = kanali.setdefault(message.channel.id, [None, None, None])
+        Channel = message_history.setdefault(message.channel.id, [None, None, None])
         print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
-        if Kanal[0] == message.content and Kanal[1] == message.content and Kanal[2] != message.content:
+        if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content:
             await message.channel.send(f'{message.content}')
-            print(f'Repeticija u {message.guild.name+" - "+message.channel.name}:, {message.content}')
-        kanali[message.channel.id] = [message.content, Kanal[0], Kanal[1]]
+            print(f'Repeticija u {message.guild.name+" - "+message.channel.name}: {message.content}')
+        message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
     await client.process_commands(message)
 
 client.run(token)

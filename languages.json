@@ -48,7 +48,7 @@
         "no_warnings_or_user_not_mentioned": "Nisi spomenuo korisnika u poruci ili korisnik nema upozorenja",
         "clearwarns_success": ":white_check_mark: Korisniku **{user}** su obrisana upozorenja",
         "welcome": "<@!{userid}> dobrodo\u0161ao ima\u0161 u <#601676952134221845> korisne komande u pinned messages, u\u017eivaj",
-        "specify_channel": "Nisi spomenuo korisnika u poruci",
+        "specify_channel": "Nisi spomenuo kanal u poruci",
         "static_response_added": "Dodan stati\u010dki odgovor `{value}` na `{key}`",
         "dynamic_response_added": "Dodan dinami\u010dki odgovor `{value}` na `{key}`",
         "dadbot": "Bok {subject}, ja sam tata"
