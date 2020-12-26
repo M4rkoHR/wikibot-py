@@ -555,7 +555,7 @@ async def removeresponse(ctx, *, response):
         try:
             key = list(responses["dynamic"].keys())[list(responses["dynamic"].values()).index(response)]
         except ValueError:
-            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"].format(response=response))
             return
         if responses["dynamic"].pop(key) == response:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_removed"].format(value=response, key=key))
@@ -563,7 +563,7 @@ async def removeresponse(ctx, *, response):
         try:
             key = list(responses["static"].keys())[list(responses["static"].values()).index(response)]
         except ValueError:
-            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"].format(response=response))
             return
         if responses["static"].pop(key) == response:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_removed"].format(value=response, key=key))
