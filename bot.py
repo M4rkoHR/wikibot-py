@@ -14,20 +14,21 @@ from db_interface import backup, restore
 
 with open('my_config.json') as config_file:
     config = json.load(config_file)
-with open('responses.json') as responses_file:
-    responses = json.load(responses_file)
 with open('languages.json') as languages_file:
     languages = json.load(languages_file)
 token = config["discord_bot_token"]
 reddit = praw.Reddit(client_id=config["praw"]["client_id"],
                      client_secret=config["praw"]["client_secret"],
                      user_agent=config["praw"]["user_agent"])
+wolfram = wolframalpha.Client(config["wolfram_api_key"])
 autor = config["bot_owner"]["name"]
 banned_subs = config["banned_subs"]
 ownerid = config["bot_owner"]["id"]
-ytid = config["youtube_api_key"]
 use_postgres = config["use_postgres"]
-wolfram = wolframalpha.Client(config["wolfram_api_key"])
+ytid = config["youtube_api_key"]
+if use_postgres: restore()
+with open('responses.json') as responses_file:
+    responses = json.load(responses_file)
 ownerdm = None # gets initialized to send messages to the bot owner later
 default_lang = "en"
 wikipedia_language = {}
@@ -35,7 +36,7 @@ message_history = {}
 answered = {}
 subsettings = {}
 userwarns = {}
-guild_language = {} #returns True for a given guild if not english, otherwise False, automatically generated
+guild_language = {} #guild language for every server, currently "hr" or "en"
 intents = discord.Intents(messages=True, guilds=True, members=True)
 client = commands.Bot(command_prefix = '?', intents=intents)
 odgovori = [ # answers for 8ball in Croatian
@@ -93,7 +94,6 @@ async def on_ready():
     await client.change_presence(activity=discord.Game(name='type ?help for help'))
     global ownerdm
     ownerdm = client.get_user(ownerid)
-    if use_postgres: restore()
     await ownerdm.send('Generating message_history{}')
     for guild in client.guilds:
         for channel in guild.channels:
@@ -544,6 +544,32 @@ async def addresponsedynamic(ctx, *, response):
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_added"].format(value=value, key=key))
+    if use_postgres: backup()
+
+@client.command(aliases=['rrd', 'rrs'], brief='Remove a dynamic response | Owner only')
+async def removeresponse(ctx, *, response):
+    if ctx.message.author.id != ownerid:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["not_author"])
+        return
+    if ctx.message.content.startswith("?rrd"):
+        try:
+            key = list(responses["dynamic"].keys())[list(responses["dynamic"].values()).index(response)]
+        except IndexError:
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
+            return
+        if responses["dynamic"].pop(key) == response:
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_removed"].format(value=response, key=key))
+    elif ctx.message.content.startswith("?rrs"):
+        try:
+            key = list(responses["static"].keys())[list(responses["static"].values()).index(response)]
+        except IndexError:
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
+            return
+        if responses["static"].pop(key) == response:
+            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_removed"].format(value=response, key=key))
+    else:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_response"])
+        return
     if use_postgres: backup()
 
 
