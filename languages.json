@@ -22,8 +22,12 @@
         "clearwarns_success": ":white_check_mark: **{user}'s** warns have been deleted",
         "welcome": "<@!{userid}>, Welcome!",
         "specify_channel": "You haven't mentioned a channel in your message",
+        "specify_response": "Specify a response type (?rrd - dynamic, ?rrs - static)",
         "static_response_added": "Added a static response `{value}` to `{key}`",
         "dynamic_response_added": "Added a dynamic response `{value}` to `{key}`",
+        "static_response_removed": "Removed a static response `{value}` to `{key}`",
+        "dynamic_response_removed": "Removed a dynamic response `{value}` to `{key}`",
+        "response_not_found": "Response `{response}` not found",
         "dadbot": "Hi {subject}, I'm dad"
     },
     "hr": {
@@ -49,8 +53,12 @@
         "clearwarns_success": ":white_check_mark: Korisniku **{user}** su obrisana upozorenja",
         "welcome": "<@!{userid}> dobrodo\u0161ao ima\u0161 u <#601676952134221845> korisne komande u pinned messages, u\u017eivaj",
         "specify_channel": "Nisi spomenuo kanal u poruci",
+        "specify_response": "Odredite tip odgovora (?rrd - dinamički, ?rrs - statički)",
         "static_response_added": "Dodan stati\u010dki odgovor `{value}` na `{key}`",
         "dynamic_response_added": "Dodan dinami\u010dki odgovor `{value}` na `{key}`",
+        "static_response_removed": "Obrisan stati\u010dki odgovor `{value}` na `{key}`",
+        "dynamic_response_removed": "Obrisan dinami\u010dki odgovor `{value}` na `{key}`",
+        "response_not_found": "Odgovor `{response}` nije pronađen",
         "dadbot": "Bok {subject}, ja sam tata"
     }
 }
