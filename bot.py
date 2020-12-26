@@ -554,7 +554,7 @@ async def removeresponse(ctx, *, response):
     if ctx.message.content.startswith("?rrd"):
         try:
             key = list(responses["dynamic"].keys())[list(responses["dynamic"].values()).index(response)]
-        except IndexError:
+        except ValueError:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
             return
         if responses["dynamic"].pop(key) == response:
@@ -562,7 +562,7 @@ async def removeresponse(ctx, *, response):
     elif ctx.message.content.startswith("?rrs"):
         try:
             key = list(responses["static"].keys())[list(responses["static"].values()).index(response)]
-        except IndexError:
+        except ValueError:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"])
             return
         if responses["static"].pop(key) == response:
