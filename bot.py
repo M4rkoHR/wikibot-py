@@ -508,12 +508,12 @@ async def addresponsestatic(ctx, *, response):
     if not kaomod:
         await ctx.send(languages[str(ctx.guild.id)])
         return
-    key, value = response.lower().split(';')
+    key, value = response.split(';')
     while key[0] == ' ':
         key = key[1:]
     while value[0] == ' ':
         value = value[1:]
-    responses["static"].update({key: value})
+    responses["static"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
@@ -534,12 +534,12 @@ async def addresponsedynamic(ctx, *, response):
     if not kaomod:
         await ctx.send(f'Nemate dozvolu!' if guild_language.setdefault(str(ctx.guild.id), False) else f'You don\'t have permissions')
         return
-    key, value = response.lower().split(';')
+    key, value = response.split(';')
     while key[0] == ' ':
         key = key[1:]
     while value[0] == ' ':
         value = value[1:]
-    responses["dynamic"].update({key: value})
+    responses["dynamic"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
             json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
