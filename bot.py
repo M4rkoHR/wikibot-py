@@ -467,7 +467,7 @@ async def send(ctx, channel, *, message):
 
 @client.command(aliases=['ap'], brief='Mod command')
 async def archivepins(ctx, channel_1=None, channel_2=None):
-    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages:
+    if ctx.message.author.id != ownerid or ctx.author.guild_permissions.manage_messages:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if ctx.message.channel_mentions:
