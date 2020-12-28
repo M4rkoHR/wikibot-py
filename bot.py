@@ -181,6 +181,7 @@ async def yt(ctx, *, query):
         searches = yt.search(str(query), safe_search="strict")
     url = 'https://www.youtube.com/watch?v=' + searches[0]['video_id']
     searches.clear()
+    del yt
     await ctx.send(f'{url}')
 
 
