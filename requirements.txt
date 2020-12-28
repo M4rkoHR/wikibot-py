@@ -3,5 +3,6 @@ praw>=7.1.0
 prawcore>=1.5.0
 urbandictpy>=1.1
 wikipedia>=1.4.0
-youtube-data-api>=0.0.20
+ytda>=0.0.18
 wolframalpha==4.0.0
+psycopg2-binary==2.8.6
