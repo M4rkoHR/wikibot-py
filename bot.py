@@ -8,6 +8,7 @@ import wikipedia
 import wolframalpha
 from time import sleep
 import urbandictionary as ud
+from datetime import datetime
 from discord.ext import commands
 from youtube_api import YoutubeDataApi
 from db_interface import backup, restore
@@ -174,15 +175,27 @@ async def d(ctx, *, string):
 @client.command(aliases=['youtube'], brief='Searches YouTube for given query and returns link')
 async def yt(ctx, *, query):
     yt = YoutubeDataApi(ytid)
-    searches=None
-    if ctx.channel.is_nsfw():
-        searches = yt.search(str(query))
-    else:
-        searches = yt.search(str(query), safe_search="strict")
-    url = 'https://www.youtube.com/watch?v=' + searches[0]['video_id']
+    searches = yt.search(str(query), max_results=3)
+    result=yt.get_video_metadata(searches[0]["video_id"], part=['id', 'snippet', 'contentDetails', 'statistics'])
     searches.clear()
     del yt
-    await ctx.send(f'{url}')
+    url = 'https://www.youtube.com/watch?v=' + result["video_id"]
+    desc=result["video_description"].split('\n')[0]
+    if len(desc)>300:
+        desc=desc[:300]+"..."
+    embed=discord.Embed(colour=0xff0000,
+                        title=result["video_title"],
+                        description=desc,
+                        url=url)
+    embed.set_author(name=result["channel_title"])
+    embed.set_thumbnail(url=result["video_thumbnail"])
+    embed.add_field(name="Views", value=str(result["video_view_count"]), inline=True)
+    embed.add_field(name="Comments", value=str(result["video_comment_count"]), inline=True)
+    embed.add_field(name="Duration", value=str(result["duration"])[2:-1].replace("M", ":").replace("H", ":"), inline=True)
+    embed.add_field(name="Likes", value=str(result["video_like_count"]), inline=True)
+    embed.add_field(name="Dislikes", value=str(result["video_dislike_count"]), inline=True)
+    embed.set_footer(text=datetime.utcfromtimestamp(int(result["video_publish_date"])).strftime('%Y-%m-%d %H:%M:%S'))
+    await ctx.send(embed=embed)
 
 
 @client.command(aliases=['wikipedia'], brief='Searches Wikipedia for given query in desired language(?wikilang)', description='Searches Wikipedia for given query in desired language(default english, changed with ?wikilang) and returns 3 sentences from summary')
