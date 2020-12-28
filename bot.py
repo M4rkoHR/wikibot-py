@@ -174,7 +174,11 @@ async def d(ctx, *, string):
 @client.command(aliases=['youtube'], brief='Searches YouTube for given query and returns link')
 async def yt(ctx, *, query):
     yt = YoutubeDataApi(ytid)
-    searches = yt.search(str(query))
+    searches=None
+    if ctx.channel.is_nsfw():
+        searches = yt.search(str(query))
+    else:
+        searches = yt.search(str(query), safe_search="strict")
     url = 'https://www.youtube.com/watch?v=' + searches[0]['video_id']
     searches.clear()
     await ctx.send(f'{url}')
@@ -284,7 +288,7 @@ async def hot(ctx, *, subreddit=None):
             return
     subreddit = reddit.subreddit(sub)
     if subreddit.over18:
-        if not ctx.channel.nsfw:
+        if not ctx.channel.is_nsfw():
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["nsfw_sub"])
             return
     for submission in subreddit.random_rising():
