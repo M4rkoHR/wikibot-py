@@ -244,12 +244,25 @@ async def yt(ctx, *, query):
 
 @client.command(aliases=['wikipedia'], brief='Searches Wikipedia for given query in desired language(?wikilang)', description='Searches Wikipedia for given query in desired language(default english, changed with ?wikilang) and returns 3 sentences from summary')
 async def wiki(ctx, *, query):
+    page=None
     try:
         wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), default_lang)))
     except:
         wikipedia.set_lang(guild_language.setdefault(str(ctx.guild.id), "en"))
-    finally:
-        await ctx.send(f'{wikipedia.summary(query, sentences=3)}')
+    try:
+        page=wikipedia.page(query)
+    except wikipedia.exceptions.DisambiguationError as e:
+        page=wikipedia.page(e.options[0])
+    except wikipedia.exceptions.PageError as e:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikipedia_page_error"])
+        return
+    embed=discord.Embed(colour=0xfefefe,
+                        title=page.title,
+                        description=page.content.split("\n")[0],
+                        url=page.url)
+    if page.images:
+        embed.set_thumbnail(url=page.images[0])
+    await ctx.send(embed=embed)
 
 
 @client.command(brief='Changes language for Wikipedia search PER USER')

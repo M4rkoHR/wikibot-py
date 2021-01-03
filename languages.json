@@ -28,7 +28,8 @@
         "static_response_removed": "Removed a static response `{value}` to `{key}`",
         "dynamic_response_removed": "Removed a dynamic response `{value}` to `{key}`",
         "response_not_found": "Response `{response}` not found",
-        "dadbot": "Hi {subject}, I'm dad"
+        "dadbot": "Hi {subject}, I'm dad",
+        "wikipedia_page_error": "Error, page does not exist, maybe you are searching in the wrong language, try using ?wikilang `language`(EN for English, DE for German etc.) if you are searcing in another language"
     },
     "hr": {
         "not_author": "Vi niste {author}",
@@ -59,6 +60,7 @@
         "static_response_removed": "Obrisan stati\u010dki odgovor `{value}` na `{key}`",
         "dynamic_response_removed": "Obrisan dinami\u010dki odgovor `{value}` na `{key}`",
         "response_not_found": "Odgovor `{response}` nije pronađen",
-        "dadbot": "Bok {subject}, ja sam tata"
+        "dadbot": "Bok {subject}, ja sam tata",
+        "wikipedia_page_error": "Greška, ta stranica ne postoji, možda pretražujete u pogrešnom jeziku, pokušajte koristiti ?wikilang `jezik`(EN za engleski, DE za njemački itd.) ako pretražujete u drugom jeziku"
     }
 }
