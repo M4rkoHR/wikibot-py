@@ -12,5 +12,7 @@
     "youtube_api_key" : "your YouTube Data API key goes here",
     "wolfram_api_key" : "your Wolfram API key goes here",
     "banned_subs" : ["banned_subreddit_1", "banned_subreddit_2"],
+    "use_topgg" : false,
+    "topgg_token" : "your topgg token, not needed if use_topgg is set to false",
     "use_postgres" : false
 }

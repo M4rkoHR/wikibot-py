@@ -1,4 +1,5 @@
 import re
+import dbl
 import time
 import praw
 import json
@@ -27,6 +28,9 @@ banned_subs = config["banned_subs"]
 ownerid = config["bot_owner"]["id"]
 use_postgres = config["use_postgres"]
 ytid = config["youtube_api_key"]
+use_topgg = config["use_topgg"]
+if use_topgg:
+    topggtoken = config["topgg_token"]
 if use_postgres: restore()
 with open('responses.json') as responses_file:
     responses = json.load(responses_file)
@@ -39,7 +43,7 @@ subsettings = {}
 userwarns = {}
 guild_language = {} #guild language for every server, currently "hr" or "en"
 intents = discord.Intents(messages=True, guilds=True, members=True)
-client = commands.Bot(command_prefix = '?', intents=intents)
+client = commands.Bot(command_prefix = '?', intents=intents, help_command=None)
 odgovori = [ # answers for 8ball in Croatian
     "Zasigurno",
     "Bez sumnje",
@@ -85,6 +89,18 @@ answers = [ # answers for 8ball in English
     'Very doubtful'
 ]
 
+class TopGG(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.token = topggtoken # set this to your DBL token
+        self.dblpy = dbl.DBLClient(self.bot, self.token, autopost=True) # Autopost will post your guild count every 30 minutes
+
+    async def on_guild_post(self):
+        print("Server count posted successfully")
+
+def setup(client):
+    client.add_cog(TopGG(client))
 
 @client.event
 async def on_ready():
@@ -92,7 +108,7 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
-    await client.change_presence(activity=discord.Game(name='type ?help for help'))
+    await client.change_presence(activity=discord.Game(name='wikibot.tech | ?help'))
     global ownerdm
     ownerdm = client.get_user(ownerid)
     await ownerdm.send('Generating message_history{}')
@@ -150,10 +166,39 @@ async def on_ready():
         await ownerdm.send('warns.json loaded')
     except:
         await ownerdm.send('warns.json not found')
+    if use_topgg:
+        setup(client=client)
+        await ownerdm.send('Setting up TopGG cog')
     await ownerdm.send('Done')
     if use_postgres: backup()
     print("Done")
 
+
+@client.command(brief='Help command')
+async def help(ctx, *, command=None):
+    embed=discord.Embed(colour=0x0000ff,
+                        title="WikiBot Help",
+                        description="To know more about each command, type ?help `command`",
+                        url="http://wikibot.tech")
+    embed.add_field(name="?yt `query`", value="YouTube search", inline=True)
+    embed.add_field(name="?wiki `query`", value="Wikipedia search", inline=True)
+    embed.add_field(name="?urban `query`", value="Urban Dictionary definition", inline=True)
+    embed.add_field(name="?urbanexample `query`", value="Example for given query from Urban Dictionary", inline=True)
+    embed.add_field(name="?wikilang `language`", value="Set Wikipedia language (EN for English, DE for German etc.)", inline=True)
+    embed.add_field(name="?8ball `question`", value="Ask Magic 8 Ball a question", inline=True)
+    embed.add_field(name="?cp|copypasta `query`", value="Sends a copypasta from r/copypasta", inline=True)
+    embed.add_field(name="?hot|meme `subreddit`", value="Sends an image from the subreddit", inline=True)
+    embed.add_field(name="?whoasked", value="Who asked?", inline=True)
+    embed.add_field(name="?garand", value="Garand ping", inline=True)
+    embed.add_field(name="?changelang `language`", value="Change bot language to a supported language", inline=True)
+    embed.add_field(name="?ping", value="Check latency", inline=True)
+    embed.add_field(name="?warn `@user` `reason`", value="Warns user for a given reason", inline=True)
+    embed.add_field(name="?warns `@user`", value="Check user's warns (your warns if no user is mentioned)", inline=True)
+    embed.add_field(name="?archivepins|ap `#source-channel` `#target-channel`", value="Archives pins from `#source-channel` into `#target-channel`", inline=True)
+    embed.add_field(name="?clearwarns `@user`", value="Clear user's warns", inline=True)
+    embed.add_field(name="?send `#target-channel` `message`", value="Sends `message` to `#target-channel`", inline=True)
+    embed.add_field(name="?lang", value="Check WikiBot language for current server", inline=True)
+    await ctx.send(embed=embed)
 
 @client.command(brief='debug command')
 async def d(ctx, *, string):
@@ -163,7 +208,6 @@ async def d(ctx, *, string):
     if str(string).lower() == 'backup':
         await ownerdm.send(file=discord.File('guild_language.json'))
         await ownerdm.send(file=discord.File('wikipedia_language.json'))
-        # await ownerdm.send(file=discord.File('message_history.json'))
         await ownerdm.send(file=discord.File('subsettings.json'))
         await ownerdm.send(file=discord.File('warns.json'))
         await ownerdm.send(file=discord.File('responses.json'))
@@ -347,7 +391,7 @@ async def m1garand(ctx):
 @client.command(aliases=['changelanguage'], brief='Debug command')
 async def changelang(ctx, language=None):
     global guild_language
-    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages:
+    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if language in languages:
@@ -384,6 +428,8 @@ async def warn(ctx, *, args):
             kaomod=True
     if not kaomod:
         if ctx.author.guild_permissions.manage_messages:
+            kaomod=True
+        if ctx.author.guild_permissions.administrator:
             kaomod=True
         if ctx.message.author.id == ownerid:
             kaomod=True
@@ -449,6 +495,8 @@ async def clearwarns(ctx, *, user):
     if not kaomod:
         if ctx.author.guild_permissions.manage_messages:
             kaomod=True
+        if ctx.author.guild_permissions.administrator:
+            kaomod=True
         if ctx.message.author.id == ownerid:
             kaomod=True
     if not kaomod:
@@ -477,6 +525,9 @@ async def welcome(ctx, *, user):
 
 @client.command(aliases=['message'], brief='Mod command')
 async def send(ctx, channel, *, message):
+    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
+        return
     try:
         target_channel = ctx.message.channel_mentions[0]
         await target_channel.send(f'{message}')
@@ -485,7 +536,7 @@ async def send(ctx, channel, *, message):
 
 @client.command(aliases=['ap'], brief='Mod command')
 async def archivepins(ctx, channel_1=None, channel_2=None):
-    if ctx.message.author.id != ownerid or ctx.author.guild_permissions.manage_messages:
+    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if ctx.message.channel_mentions:
@@ -521,6 +572,8 @@ async def addresponsestatic(ctx, *, response):
     if not kaomod:
         if ctx.author.guild_permissions.manage_messages:
             kaomod=True
+        if ctx.author.guild_permissions.administrator:
+            kaomod=True
         if ctx.message.author.id == ownerid:
             kaomod=True
     if not kaomod:
@@ -546,6 +599,8 @@ async def addresponsedynamic(ctx, *, response):
             kaomod=True
     if not kaomod:
         if ctx.author.guild_permissions.manage_messages:
+            kaomod=True
+        if ctx.author.guild_permissions.administrator:
             kaomod=True
         if ctx.message.author.id == ownerid:
             kaomod=True
@@ -627,9 +682,10 @@ async def on_message(message):
         if Channel == [None, None, None]:
             counter=0
             try:
-                async for message in client.get_channel(id).history(limit=3):
+                async for message in client.get_channel(message.channel.id).history(limit=3):
                     message_history[message.guild.id][counter]=message.content
                     counter += 1
+                print("Added channel {channel} from server {guild}".format(channel=message.channel.name, guild=message.guild.name))
             except discord.NoMoreItems:
                 print("Eol 546")
             except:
