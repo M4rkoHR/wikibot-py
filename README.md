@@ -3,8 +3,6 @@
 # Wikibot
 A robot, dadbot, warnbot, cool guy, invite him to your server [here](https://top.gg/bot/720738328714018816/invite "Invite WikiBot")
 
-# config.json
-Fill in your API keys, your Discord Account ID(for DM feedback), delete the comment after `"id" : your_discord_id_here` and rename to `my_config.json` to be picked up by the bot
 
 # **Commands**
 
@@ -107,3 +105,9 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   #### Archive pins
   
   ?archivepins|ap `#source channel` `#target channel`
+
+
+# Deploy your own WikiBot
+
+## config.json
+Fill in your API keys, your Discord Account ID(for DM feedback), delete the comment after `"id" : your_discord_id_here` and rename to `my_config.json` to be picked up by the bot
