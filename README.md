@@ -8,7 +8,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
 
 # **Commands**
 
-  # wiki
+  ## wiki
   
   #### Searches Wikipedia for given query in desired language
   
@@ -16,7 +16,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # urban
+  ## urban
   
   #### Gives a definition for a given query from urban dictionary
   
@@ -24,7 +24,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # hot
+  ## hot
   
   #### Random post from given subreddit
   
@@ -32,7 +32,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # yt
+  ## yt
   
   #### Searches YouTube for given query and sends a video
   
@@ -40,7 +40,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # urbanexample
+  ## urbanexample
   
   #### Gives an example for a given query from urban dictionary
   
@@ -48,7 +48,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # 8ball
+  ## 8ball
   
   #### Magic 8 Ball...
   
@@ -56,7 +56,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # hotsource
+  ## hotsource
   
   #### Changes source subreddit for an empty ?hot|meme comamnd
   
@@ -64,13 +64,13 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # ping
+  ## ping
   
   #### Check bot latency
   
   
   
-  # copypasta
+  ## copypasta
   
   #### Searches copypasta for given query
   
@@ -78,7 +78,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # warn
+  ## warn
   
   #### Warn users for a reason
   
@@ -86,7 +86,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # warns
+  ## warns
   
   #### Lists warnings for given user
   
@@ -94,7 +94,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # wikilang
+  ## wikilang
   
   #### Changes language for Wikipedia search PER USER
   
@@ -102,7 +102,7 @@ Fill in your API keys, your Discord Account ID(for DM feedback), delete the comm
   
   
   
-  # archivepins
+  ## archivepins
   
   #### Archive pins
   
