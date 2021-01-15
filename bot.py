@@ -120,7 +120,10 @@ async def on_ready():
             guild_language = json.load(json_file)
         print(guild_language)
         await ownerdm.send('guild_language.json loaded')
-        await ownerdm.send(f'guild_language:\n```{guild_language}```')
+        try:
+            await ownerdm.send(f'guild_language:\n```{guild_language}```')
+        except:
+            await ownerdm.send(f'guild_language:\n```file too large```')
     except:
         await ownerdm.send('Exception, generating new guild_language.json')
         for guild in client.guilds:
@@ -135,7 +138,10 @@ async def on_ready():
         with open('wikipedia_language.json') as json_file:
             wikipedia_language = json.load(json_file)
         await ownerdm.send('wikipedia_language.json loaded')
-        await ownerdm.send(f'wikipedia_language:\n```{wikipedia_language}```')
+        try:
+            await ownerdm.send(f'wikipedia_language:\n```{wikipedia_language}```')
+        except:
+            await ownerdm.send(f'wikipedia_language:\n```file too large```')
     except:
         await ownerdm.send('wikipedia_language.json not found')
     try:
@@ -143,7 +149,10 @@ async def on_ready():
         with open('subsettings.json') as json_file:
             subsettings = json.load(json_file)
         await ownerdm.send('subsettings.json loaded')
-        await ownerdm.send(f'subsettings:\n```{subsettings}```')
+        try:
+            await ownerdm.send(f'subsettings:\n```{subsettings}```')
+        except:
+            await ownerdm.send(f'subsettings:\n```file too large```')
     except:
         await ownerdm.send('subsettings.json not found')
     try:
