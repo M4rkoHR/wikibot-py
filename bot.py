@@ -46,6 +46,7 @@ userwarns = {}
 guild_language = {} #guild language for every server, currently "hr" or "en"
 intents = discord.Intents(messages=True, guilds=True, members=True)
 client = commands.Bot(command_prefix = '?', intents=intents, help_command=None)
+language_not_supported = "That language is not supported yet, you can help translate WikiBot to your language by translating a small number of responses over on https://github.com/M4rkoHR/wikibot-py/blob/main/languages.json"
 odgovori = [ # answers for 8ball in Croatian
     "Zasigurno",
     "Bez sumnje",
@@ -430,12 +431,15 @@ async def changelang(ctx, language=None):
     else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
-    if language in languages:
-        guild_language[str(ctx.guild.id)] = str(language)
-        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["language_change"])
     if language == None:
         guild_language[str(ctx.guild.id)] = "hr"*(guild_language[str(ctx.guild.id)]=="en")+"en"*(guild_language[str(ctx.guild.id)]=="hr")
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["language_change"])
+    if language in languages:
+        guild_language[str(ctx.guild.id)] = str(language)
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["language_change"])
+    else:
+        await ctx.send(language_not_supported)
+        return
     try:
         with open('guild_language.json', 'w') as json_file:
                 json.dump(guild_language, json_file)
