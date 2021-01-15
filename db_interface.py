@@ -19,10 +19,20 @@ def backup():
         conn.commit()
         cursor.close()
     conn.close()
-def restore():
-    json_files = ['guild_language.json', 'responses.json', 'subsettings.json', 'warns.json', 'wikipedia_language.json']
+def restore(file=None):
     DATABASE_URL = os.environ['DATABASE_URL']
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    if file!=None:
+        cursor = conn.cursor()
+        select_query="""SELECT VALUE FROM json WHERE name = '{}'""".format(file)
+        cursor.execute(select_query)
+        data = cursor.fetchall()
+        conn.commit()
+        cursor.close()
+        data=str(data)[2:-3]
+        data=literal_eval(data)
+        return data
+    json_files = ['guild_language.json', 'responses.json', 'subsettings.json', 'warns.json', 'wikipedia_language.json']
     for restore_file in json_files:
         cursor = conn.cursor()
         select_query="""SELECT VALUE FROM json WHERE name = '{}'""".format(restore_file)
@@ -31,7 +41,6 @@ def restore():
         conn.commit()
         cursor.close()
         data=str(data)[2:-3]
-        print(data)
         data=literal_eval(data)
         with open(restore_file, 'w') as json_file:
             json.dump(data, json_file)

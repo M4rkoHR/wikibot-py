@@ -1,8 +1,10 @@
 import re
 import dbl
+import sys
 import time
 import praw
 import json
+import signal
 import random
 import discord
 import wikipedia
@@ -111,22 +113,6 @@ async def on_ready():
     await client.change_presence(activity=discord.Game(name='wikibot.tech | ?help'))
     global ownerdm
     ownerdm = client.get_user(ownerid)
-    await ownerdm.send('Generating message_history{}')
-    for guild in client.guilds:
-        for channel in guild.channels:
-            if str(channel.type) == "text":
-                message_history.update({channel.id: [None, None, None]})
-                counter=0
-                try:
-                    async for message in channel.history(limit=3):
-                        message_history[channel.id][counter]=message.content
-                        print(message.content)
-                        counter += 1
-                except discord.NoMoreItems:
-                    print("No more items")
-                except:
-                    message_history.update({channel.id: [None, None, None]})
-                    print("Exception")
     try:
         global guild_language
         with open('guild_language.json') as json_file:
@@ -182,22 +168,22 @@ async def help(ctx, *, command=None):
                         url="http://wikibot.tech")
     embed.add_field(name="?yt `query`", value="YouTube search", inline=True)
     embed.add_field(name="?wiki `query`", value="Wikipedia search", inline=True)
-    embed.add_field(name="?urban `query`", value="Urban Dictionary definition", inline=True)
-    embed.add_field(name="?urbanexample `query`", value="Example for given query from Urban Dictionary", inline=True)
+    embed.add_field(name="?urban|ud `query`", value="Urban Dictionary search", inline=True)
     embed.add_field(name="?wikilang `language`", value="Set Wikipedia language (EN for English, DE for German etc.)", inline=True)
     embed.add_field(name="?8ball `question`", value="Ask Magic 8 Ball a question", inline=True)
     embed.add_field(name="?cp|copypasta `query`", value="Sends a copypasta from r/copypasta", inline=True)
-    embed.add_field(name="?hot|meme `subreddit`", value="Sends an image from the subreddit", inline=True)
-    embed.add_field(name="?whoasked", value="Who asked?", inline=True)
-    embed.add_field(name="?garand", value="Garand ping", inline=True)
-    embed.add_field(name="?changelang `language`", value="Change bot language to a supported language", inline=True)
-    embed.add_field(name="?ping", value="Check latency", inline=True)
+    embed.add_field(name="?hot|meme|reddit `subreddit`", value="Sends an image from the subreddit", inline=True)
     embed.add_field(name="?warn `@user` `reason`", value="Warns user for a given reason", inline=True)
     embed.add_field(name="?warns `@user`", value="Check user's warns (your warns if no user is mentioned)", inline=True)
-    embed.add_field(name="?archivepins|ap `#source-channel` `#target-channel`", value="Archives pins from `#source-channel` into `#target-channel`", inline=True)
+    embed.add_field(name="?changelang `language`", value="Change bot language to a supported language", inline=True)
     embed.add_field(name="?clearwarns `@user`", value="Clear user's warns", inline=True)
-    embed.add_field(name="?send `#target-channel` `message`", value="Sends `message` to `#target-channel`", inline=True)
     embed.add_field(name="?lang", value="Check WikiBot language for current server", inline=True)
+    embed.add_field(name="?subreddit | memesource | hotsource `subreddit`", value="Set a default subreddit for an empty `?hot | meme | reddit` command (with no arguments)", inline=True)
+    embed.add_field(name="?archivepins|ap `#source-channel` `#target-channel`", value="Archives pins from `#source-channel` into `#target-channel`", inline=True)
+    embed.add_field(name="?send `#target-channel` `message`", value="Sends `message` to `#target-channel`", inline=True)
+    embed.add_field(name="?garand", value="Garand ping", inline=True)
+    embed.add_field(name="?ping", value="Check latency", inline=True)
+    embed.add_field(name="?whoasked", value="Who asked?", inline=True)
     await ctx.send(embed=embed)
 
 @client.command(brief='debug command')
@@ -244,63 +230,78 @@ async def yt(ctx, *, query):
 
 @client.command(aliases=['wikipedia'], brief='Searches Wikipedia for given query in desired language(?wikilang)', description='Searches Wikipedia for given query in desired language(default english, changed with ?wikilang) and returns 3 sentences from summary')
 async def wiki(ctx, *, query):
+    global wikipedia_language
+    try:
+        wikipedia_language = restore(file="wikipedia_language.json")
+    except Exception as e:
+        await ownerdm.send("Unable to restore Wikipedia languages: \n{exception}".format(exception=e))
+        restore()
+        try:
+            with open('wikipedia_language.json') as json_file:
+                wikipedia_language = json.load(json_file)
+            await ownerdm.send('wikipedia_language.json loaded')
+            await ownerdm.send(f'wikipedia_language:\n```{wikipedia_language}```')
+        except:
+            await ownerdm.send('wikipedia_language.json not found')
     page=None
+    wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), guild_language.get(str(ctx.guild.id), "en"))))
     try:
-        wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.message.author.id), default_lang)))
-    except:
-        wikipedia.set_lang(guild_language.setdefault(str(ctx.guild.id), "en"))
-    try:
-        page=wikipedia.page(query)
+        page=wikipedia.page(wikipedia.search(query)[0])
     except wikipedia.exceptions.DisambiguationError as e:
-        page=wikipedia.page(e.options[0])
-    except wikipedia.exceptions.PageError as e:
+        counter=0
+        while page==None:
+            try:
+                page=wikipedia.page(e.options[counter])
+            except:
+                counter+=1
+    except IndexError as e:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikipedia_page_error"])
+        print(e)
         return
     embed=discord.Embed(colour=0xfefefe,
                         title=page.title,
-                        description=page.content.split("\n")[0],
-                        url=page.url)
+                        description=page.summary.split("\n")[0],
+                        url=page.url,)
+    embed.set_author(name="Wikipedia",
+                    icon_url="https://cdn.discordapp.com/attachments/601676952134221845/799319569025335406/wikipedia.png",
+                    url="https://www.wikipedia.org/")
     if page.images:
         embed.set_thumbnail(url=page.images[0])
     await ctx.send(embed=embed)
 
 
 @client.command(brief='Changes language for Wikipedia search PER USER')
-async def wikilang(ctx, language):
-    defaultlang = guild_language.setdefault(str(ctx.guild.id), "en")
-    defaultlg = wikipedia.languages()[defaultlang]
-    query=language
+async def wikilang(ctx, language=None):
+    if language==None:
+        deflang=str(wikipedia_language.setdefault(str(ctx.message.author.id), guild_language.get(str(ctx.guild.id), "en")))
+        await ctx.send("Language is {short} - {long}".format(short=deflang, long=wikipedia.languages()[deflang]))
+        return
+    query=language.lower()
     if query in wikipedia.languages():
         wikipedia_language.update({str(ctx.message.author.id): str(query)})
         lg = wikipedia.languages()[query]
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_success"].format(query=query, lg=lg))
     else:
-        if guild_language.setdefault(str(ctx.guild.id), False):
-            wikipedia_language.update({str(ctx.message.author.id): str("hr")})
-        else:
-            wikipedia_language.update({str(ctx.message.author.id): str(defaultlang)})
-        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_error"].format(defaultlang=defaultlang, defaultlg=defaultlg))
+        defaultlanguage = wikipedia_language.setdefault(str(ctx.message.author.id), guild_language.setdefault(str(ctx.guild.id), "en"))
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikilang_error"].format(defaultlang=defaultlanguage, defaultlg=wikipedia.languages()[defaultlanguage]))
     with open('wikipedia_language.json', 'w') as json_file:
         json.dump(wikipedia_language, json_file)
     if use_postgres: backup()
 
 
-@client.command(aliases=['urbandefinition'], brief='Gives a definition for a given query from urban dictionary')
+@client.command(aliases=['urbandefinition', 'urbandictionary', 'ud', 'urbanexample'], brief='Gives a definition for a given query from urban dictionary')
 async def urban(ctx, *, query):
     urbandefinition = ud.define(query)
-    udefiniton = urbandefinition[0].definition.replace('[', '').replace(']', '')
-    await ctx.send(f'{udefiniton}')
-
-
-@client.command(brief='Gives an example for a given query from urban dictionary')
-async def urbanexample(ctx, *, query):
-    urbandefinition = ud.define(query)
-    for d in urbandefinition:
-        dexample = d.example
-        dexample = dexample.replace('[', '')
-        dexample = dexample.replace(']', '')
-        await ctx.send(f'{dexample}')
-        break
+    embed=discord.Embed(colour=0xe86222,
+                        title=urbandefinition[0].word,
+                        url="https://www.urbandictionary.com/define.php?term={word}".format(word=urbandefinition[0].word.replace(" ", "%20")))
+    embed.add_field(name="Definition", value=urbandefinition[0].definition.replace('[', '').replace(']', ''), inline=False)
+    embed.add_field(name="Example", value=urbandefinition[0].example.replace('[', '').replace(']', ''), inline=False)
+    embed.set_footer(text="{upvotes} 👍 {downvotes} 👎".format(upvotes=urbandefinition[0].upvotes, downvotes=urbandefinition[0].downvotes))
+    embed.set_author(name="Urban Dictionary",
+                    icon_url="https://cdn.discordapp.com/attachments/795406810844495944/799297576766799882/ud.png",
+                    url="https://www.urbandictionary.com/")
+    await ctx.send(embed=embed)
 
 
 @client.command(aliases=['bebacekic'], brief='Warns user for their inappropriate behavior')
@@ -316,9 +317,9 @@ async def magic8ball(ctx, *, question):
     if query.lower() in alreadyanswered:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["already_answered"])
     else:
-        answer = random.choice(odgovori if guild_language.setdefault(str(ctx.guild.id), False) else answers)
+        answer = random.choice(odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else answers)
         for i in range(10, 15):
-            if answer == (odgovori if guild_language.setdefault(str(ctx.guild.id), False) else answers)[i]:
+            if answer == (odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else answers)[i]:
                 await ctx.send(f'{answer}')
                 return
         alreadyanswered.append(str(query).lower())
@@ -329,7 +330,14 @@ async def magic8ball(ctx, *, question):
 @client.command(aliases=['cp', 'cropasta', 'pasta'], brief='Searches copy|cropasta for given query')
 async def copypasta(ctx, *, query):
     maxlength=2000
-    for submission in reddit.subreddit("cropasta" if guild_language.setdefault(str(ctx.guild.id), default_lang)=="hr" else "copypasta").search(query):
+    subreddit=None
+    if ctx.message.content.startswith('?copypasta'):
+        subreddit='copypasta'
+    elif ctx.message.content.startswith('?cropasta'):
+        subreddit='cropasta'
+    else:
+        subreddit=("cropasta" if guild_language.setdefault(str(ctx.guild.id), default_lang)=="hr" else "copypasta")
+    for submission in reddit.subreddit(subreddit).search(query):
         textpost=submission.selftext
         while len(textpost)>maxlength:
             await ctx.send(textpost[:maxlength])
@@ -338,8 +346,21 @@ async def copypasta(ctx, *, query):
         break
 
 
-@client.command(aliases=['meme'], brief='Random post from given subreddit', description='Random post from subreddit <query> or if subreddit is left out it defaults to your desired setting in ?hotsource|memesource')
+@client.command(aliases=['meme', 'reddit'], brief='Random post from given subreddit', description='Random post from subreddit <query> or if subreddit is left out it defaults to your desired setting in ?hotsource|memesource')
 async def hot(ctx, *, subreddit=None):
+    global subsettings
+    try:
+        subsettings = restore(file="subsettings.json")
+    except Exception as e:
+        await ownerdm.send("Unable to restore subsettings.json:\n{exception}".format(exception=e))
+        restore()
+        try:
+            with open('subsettings.json') as json_file:
+                subsettings = json.load(json_file)
+            await ownerdm.send('subsettings.json loaded')
+            await ownerdm.send(f'subsettings:\n```{subsettings}```')
+        except:
+            await ownerdm.send('subsettings.json not found')
     query=subreddit
     embed=discord.Embed(colour=discord.Colour.blue())
     if query == None:
@@ -373,7 +394,7 @@ async def hot(ctx, *, subreddit=None):
     await ctx.send("Not found.")
 
 
-@client.command(aliases=['hotsource'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
+@client.command(aliases=['hotsource', 'redditsource', 'subreddit'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
 async def memesource(ctx, *, subreddit):
     query=subreddit
     sub = query.replace(' ', '')
@@ -404,7 +425,9 @@ async def m1garand(ctx):
 @client.command(aliases=['changelanguage'], brief='Debug command')
 async def changelang(ctx, language=None):
     global guild_language
-    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
+    if ctx.message.author.id == ownerid or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if language in languages:
@@ -460,7 +483,7 @@ async def warn(ctx, *, args):
     except:
         warnovi = []
     finally:
-        warnovi.append(reason)
+        warnovi+=reason.split("\n")
         userwarns.update({str(userid): warnovi})
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["warn_success"].format(ime=ime, reason=reason))
         await client.get_user(userid).send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["warned"].format(guild_name=ctx.guild.name, reason=reason))
@@ -538,7 +561,9 @@ async def welcome(ctx, *, user):
 
 @client.command(aliases=['message'], brief='Mod command')
 async def send(ctx, channel, *, message):
-    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
+    if ctx.message.author.id == ownerid or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     try:
@@ -549,7 +574,9 @@ async def send(ctx, channel, *, message):
 
 @client.command(aliases=['ap'], brief='Mod command')
 async def archivepins(ctx, channel_1=None, channel_2=None):
-    if ctx.message.author.id != ownerid or not ctx.author.guild_permissions.manage_messages or not ctx.author.guild_permissions.administrator:
+    if ctx.message.author.id == ownerid or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if ctx.message.channel_mentions:
@@ -599,7 +626,7 @@ async def addresponsestatic(ctx, *, response):
         value = value[1:]
     responses["static"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
-            json.dump(responses, json_file)
+        json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_added"].format(value=value, key=key))
     if use_postgres: backup()
@@ -627,7 +654,7 @@ async def addresponsedynamic(ctx, *, response):
         value = value[1:]
     responses["dynamic"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
-            json.dump(responses, json_file)
+        json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_added"].format(value=value, key=key))
     if use_postgres: backup()
@@ -656,6 +683,8 @@ async def removeresponse(ctx, *, response):
     else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_response"])
         return
+    with open('responses.json', 'w') as json_file:
+        json.dump(responses, json_file)
     if use_postgres: backup()
 
 
@@ -675,7 +704,11 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(responses["dynamic"][key])
             return
-
+    if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
+        query = message.content.lower().split('s ', maxsplit=1)[1]
+        res = wolfram.query(query)
+        await message.channel.send(next(res.results).text)
+        return
     if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
         res = wolfram.query(message.content.lower().split(' je ')[1])
         await message.channel.send(next(res.results).text)
@@ -688,21 +721,24 @@ async def on_message(message):
 
     # repeat messages
     if not message.content.startswith('?'):
-        Channel = [None, None, None]
         print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
-        if message.channel.id in message_history:
-            Channel = message_history.get(message.channel.id, [None, None, None])
+        Channel = message_history.setdefault(message.channel.id, [None, None, None])
         if Channel == [None, None, None]:
+            # Channel = [message.content, None, None]
             counter=0
+            first=True
             try:
-                async for message in client.get_channel(message.channel.id).history(limit=3):
-                    message_history[message.guild.id][counter]=message.content
-                    counter += 1
-                print("Added channel {channel} from server {guild}".format(channel=message.channel.name, guild=message.guild.name))
+                async for messages in client.get_channel(message.channel.id).history(limit=4):
+                    if first:
+                        first=False                        
+                    else:
+                        message_history[message.channel.id][counter]=messages.content
+                        counter += 1
+                # print("Added channel {channel} from server {guild}".format(channel=message.channel.name, guild=message.guild.name))
             except discord.NoMoreItems:
-                print("Eol 546")
+                print("NoMoreItems 757")
             except:
-                print("Exception 548")
+                print("Exception 759")
         Channel = message_history.setdefault(message.channel.id, [None, None, None])
         print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
         if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content:
@@ -711,4 +747,12 @@ async def on_message(message):
         message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
     await client.process_commands(message)
 
+def sigterm(signal, frame):
+    print("Graceful exit")
+    """
+    if use_postgres:
+        backup()"""
+
+
+signal.signal(signal.SIGTERM, sigterm)
 client.run(token)
