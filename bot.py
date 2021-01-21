@@ -191,6 +191,9 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?subreddit | memesource | hotsource `subreddit`", value="Set a default subreddit for an empty `?hot | meme | reddit` command (with no arguments)", inline=True)
     embed.add_field(name="?archivepins|ap `#source-channel` `#target-channel`", value="Archives pins from `#source-channel` into `#target-channel`", inline=True)
     embed.add_field(name="?send `#target-channel` `message`", value="Sends `message` to `#target-channel`", inline=True)
+    embed.add_field(name="?ars `keyword`;`response`", value="Bot responds with `response` if message is equal to `keyword` (case insensitive)", inline=True)
+    embed.add_field(name="?ard `keyword`;`response`", value="Bot responds with `response` if message contains `keyword` (case insensitive)", inline=True)
+    embed.add_field(name="?rrs|rrd `response`", value="Removes a response, ?rrs to remove a static response, ?rrd to remove dynamic one", inline=True)
     embed.add_field(name="?garand", value="Garand ping", inline=True)
     embed.add_field(name="?ping", value="Check latency", inline=True)
     embed.add_field(name="?whoasked", value="Who asked?", inline=True)
@@ -268,9 +271,12 @@ async def wiki(ctx, *, query):
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["wikipedia_page_error"])
         print(e)
         return
+    summary=page.summary.split("\n")[0]
+    if len(summary)>2048:
+        summary=summary[:2045]+"..."
     embed=discord.Embed(colour=0xfefefe,
                         title=page.title,
-                        description=page.summary.split("\n")[0],
+                        description=summary,
                         url=page.url,)
     embed.set_author(name="Wikipedia",
                     icon_url="https://cdn.discordapp.com/attachments/601676952134221845/799319569025335406/wikipedia.png",
@@ -302,11 +308,17 @@ async def wikilang(ctx, language=None):
 @client.command(aliases=['urbandefinition', 'urbandictionary', 'ud', 'urbanexample'], brief='Gives a definition for a given query from urban dictionary')
 async def urban(ctx, *, query):
     urbandefinition = ud.define(query)
+    ud_definition=urbandefinition[0].definition.replace('[', '').replace(']', '')
+    ud_example=urbandefinition[0].example.replace('[', '').replace(']', '')
+    if len(ud_definition)>1024:
+        ud_definition=ud_definition[:1021]+"..."
+    if len(ud_example)>1024:
+        ud_example=ud_definition[:1021]+"..."
     embed=discord.Embed(colour=0xe86222,
                         title=urbandefinition[0].word,
                         url="https://www.urbandictionary.com/define.php?term={word}".format(word=urbandefinition[0].word.replace(" ", "%20")))
-    embed.add_field(name="Definition", value=urbandefinition[0].definition.replace('[', '').replace(']', ''), inline=False)
-    embed.add_field(name="Example", value=urbandefinition[0].example.replace('[', '').replace(']', ''), inline=False)
+    embed.add_field(name="Definition", value=ud_definition, inline=False)
+    embed.add_field(name="Example", value=ud_example, inline=False)
     embed.set_footer(text="{upvotes} 👍 {downvotes} 👎".format(upvotes=urbandefinition[0].upvotes, downvotes=urbandefinition[0].downvotes))
     embed.set_author(name="Urban Dictionary",
                     icon_url="https://cdn.discordapp.com/attachments/795406810844495944/799297576766799882/ud.png",
@@ -637,7 +649,9 @@ async def addresponsestatic(ctx, *, response):
         key = key[1:]
     while value[0] == ' ':
         value = value[1:]
-    responses["static"].update({key.lower(): value})
+    if str(ctx.guild.id) not in responses:
+        responses[str(ctx.guild.id)]={"static": {}, "dynamic": {}}
+    responses[str(ctx.guild.id)]["static"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
         json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
@@ -665,7 +679,9 @@ async def addresponsedynamic(ctx, *, response):
         key = key[1:]
     while value[0] == ' ':
         value = value[1:]
-    responses["dynamic"].update({key.lower(): value})
+    if str(ctx.guild.id) not in responses:
+        responses[str(ctx.guild.id)]={"static": {}, "dynamic": {}}
+    responses[str(ctx.guild.id)]["dynamic"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
         json.dump(responses, json_file)
     await ownerdm.send(file=discord.File('responses.json'))
@@ -674,24 +690,26 @@ async def addresponsedynamic(ctx, *, response):
 
 @client.command(aliases=['rrd', 'rrs'], brief='Remove a dynamic response | Owner only')
 async def removeresponse(ctx, *, response):
-    if ctx.message.author.id != ownerid:
-        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["not_author"])
+    if ctx.message.author.id == ownerid or ctx.author.guild_permissions.manage_messages or ctx.author.guild_permissions.administrator:
+        pass
+    else:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["permission_denied"])
         return
     if ctx.message.content.startswith("?rrd"):
         try:
-            key = list(responses["dynamic"].keys())[list(responses["dynamic"].values()).index(response)]
+            key = list(responses.get(str(ctx.guild.id), {"dynamic": {}})["dynamic"].keys())[list(responses.get(str(ctx.guild.id), {"dynamic": []})["dynamic"].values()).index(response)]
         except ValueError:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"].format(response=response))
             return
-        if responses["dynamic"].pop(key) == response:
+        if responses[str(ctx.guild.id)]["dynamic"].pop(key) == response:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_removed"].format(value=response, key=key))
     elif ctx.message.content.startswith("?rrs"):
         try:
-            key = list(responses["static"].keys())[list(responses["static"].values()).index(response)]
+            key = list(responses.get(str(ctx.guild.id), {"static": {}})["static"].keys())[list(responses.get(str(ctx.guild.id), {"static": {}})["static"].values()).index(response)]
         except ValueError:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["response_not_found"].format(response=response))
             return
-        if responses["static"].pop(key) == response:
+        if responses[str(ctx.guild.id)]["static"].pop(key) == response:
             await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_removed"].format(value=response, key=key))
     else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_response"])
@@ -701,6 +719,14 @@ async def removeresponse(ctx, *, response):
     if use_postgres: backup()
 
 
+@client.command(brief='Dashboard')
+async def website(ctx):
+    await ctx.send("http://wikibot.tech/")
+
+@client.command(brief='Vote for bot')
+async def vote(ctx):
+    await ctx.send("https://top.gg/bot/720738328714018816/vote")
+
 @client.event
 async def on_message(message):
     global message_history
@@ -708,15 +734,16 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    for key in responses["static"]:
+    for key in responses.get(str(message.guild.id), {"static": {}})["static"]:
         if key == message.content.lower():
-            await message.channel.send(responses["static"][key])
+            await message.channel.send(responses[str(message.guild.id)]["static"][key])
             return
 
-    for key in responses["dynamic"]:
+    for key in responses.get(str(message.guild.id), {"dynamic": {}})["dynamic"]:
         if key in message.content.lower():
-            await message.channel.send(responses["dynamic"][key])
+            await message.channel.send(responses[str(message.guild.id)]["dynamic"][key])
             return
+    
     if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
         query = message.content.lower().split('s ', maxsplit=1)[1]
         res = wolfram.query(query)
@@ -727,14 +754,14 @@ async def on_message(message):
         await message.channel.send(next(res.results).text)
         return
     #dadbot
-    if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(str(message.guild.id), False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not guild_language.setdefault(str(message.guild.id), False))) and check:
+    if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(str(message.guild.id), False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not (guild_language.setdefault(str(message.guild.id), "en")=="hr"))) and check:
             await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
             return
 
 
     # repeat messages
     if not message.content.startswith('?'):
-        print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
+        #print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
         Channel = message_history.setdefault(message.channel.id, [None, None, None])
         if Channel == [None, None, None]:
             # Channel = [message.content, None, None]
@@ -753,10 +780,10 @@ async def on_message(message):
             except:
                 print("Exception 759")
         Channel = message_history.setdefault(message.channel.id, [None, None, None])
-        print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
-        if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content:
+        #print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
+        if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content and message.content != "":
             await message.channel.send(f'{message.content}')
-            print(f'Repeticija u {message.guild.name+" - "+message.channel.name}: {message.content}')
+            print(f'Repetition in {message.guild.name+" - "+message.channel.name}: {message.content}')
         message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
     await client.process_commands(message)
 
