@@ -3,6 +3,8 @@
 # Wikibot
 A robot, dadbot, warnbot, cool guy, invite him to your server [here](https://top.gg/bot/720738328714018816/invite "Invite WikiBot")
 
+Bot web dashboard: [WikiBot.tech](http://wikibot.tech/ "WikiBot Dashboard")
+
 
 # **Commands**
 
