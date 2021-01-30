@@ -1,13 +1,15 @@
 import re
-import dbl
 import sys
 import time
 import praw
 import json
+import TopGG
 import signal
 import random
 import discord
+import settings
 import wikipedia
+import eightball
 import wolframalpha
 from time import sleep
 import urbandictionary as ud
@@ -16,23 +18,21 @@ from discord.ext import commands
 from youtube_api import YoutubeDataApi
 from db_interface import backup, restore
 
-with open('my_config.json') as config_file:
-    config = json.load(config_file)
-with open('languages.json') as languages_file:
+with open('languages.json', encoding='utf8') as languages_file:
     languages = json.load(languages_file)
-token = config["discord_bot_token"]
-reddit = praw.Reddit(client_id=config["praw"]["client_id"],
-                     client_secret=config["praw"]["client_secret"],
-                     user_agent=config["praw"]["user_agent"])
-wolfram = wolframalpha.Client(config["wolfram_api_key"])
-autor = config["bot_owner"]["name"]
-banned_subs = config["banned_subs"]
-ownerid = config["bot_owner"]["id"]
-use_postgres = config["use_postgres"]
-ytid = config["youtube_api_key"]
-use_topgg = config["use_topgg"]
+token = settings.discordBotToken
+reddit = praw.Reddit(client_id=settings.prawClientID,
+                     client_secret=settings.prawClientSecret,
+                     user_agent=settings.prawUserAgent)
+wolfram = wolframalpha.Client(settings.wolframApiKey)
+autor = settings.ownerName
+banned_subs = settings.bannedSubs
+ownerid = settings.ownerID
+use_postgres = settings.usePostgres
+ytid = settings.youtubeApiKey
+use_topgg = settings.useTopGG
 if use_topgg:
-    topggtoken = config["topgg_token"]
+    topggtoken = settings.TopGGtoken
 if use_postgres: restore()
 with open('responses.json') as responses_file:
     responses = json.load(responses_file)
@@ -47,63 +47,6 @@ guild_language = {} #guild language for every server, currently "hr" or "en"
 intents = discord.Intents(messages=True, guilds=True, members=True)
 client = commands.Bot(command_prefix = '?', intents=intents, help_command=None)
 language_not_supported = "That language is not supported yet, you can help translate WikiBot to your language by translating a small number of responses over on https://github.com/M4rkoHR/wikibot-py/blob/main/languages.json"
-odgovori = [ # answers for 8ball in Croatian
-    "Zasigurno",
-    "Bez sumnje",
-    "U to se možeš uzdati",
-    "Da, definitivno",
-    "Naravno",
-    "Da je očit odgovor",
-    "Da, najvjerovatnije",
-    "Da.",
-    "Da, retarde",
-    "Svi znakovi upućuju na da",
-    "Ne razumijem, pokušaj ponovno",
-    "Kakvo je to pitanje jebemti",
-    "Pitaj ponovo kasnije",
-    "Nemogu sada predvidjeti",
-    "Usredotoči se i pitaj ponovno",
-    "Ne računaj na to",
-    "Izgledi nisu dobri",
-    "Moji izvori kažu ne",
-    "Sumnjam",
-    "Ne, zašto pitaš"
-]
-answers = [ # answers for 8ball in English
-    'It is certain',
-    'It is decidedly so',
-    'Without a doubt',
-    'Yes – definitely',
-    'You may rely on it',
-    'As I see it, yes',
-    'Most likely',
-    'Outlook good',
-    'Yes Signs point to yes',
-    'Well, obviously...',
-    'Reply hazy', 'try again',
-    'Ask again later',
-    'Better not tell you now',
-    'Cannot predict now',
-    'Concentrate and ask again',
-    'Dont count on it',
-    'My reply is no',
-    'My sources say no',
-    'Outlook not so good',
-    'Very doubtful'
-]
-
-class TopGG(commands.Cog):
-
-    def __init__(self, bot):
-        self.bot = bot
-        self.token = topggtoken # set this to your DBL token
-        self.dblpy = dbl.DBLClient(self.bot, self.token, autopost=True) # Autopost will post your guild count every 30 minutes
-
-    async def on_guild_post(self):
-        print("Server count posted successfully")
-
-def setup(client):
-    client.add_cog(TopGG(client))
 
 @client.event
 async def on_ready():
@@ -163,7 +106,7 @@ async def on_ready():
     except:
         await ownerdm.send('warns.json not found')
     if use_topgg:
-        setup(client=client)
+        TopGG.setup(client=client)
         await ownerdm.send('Setting up TopGG cog')
     await ownerdm.send('Done')
     if use_postgres: backup()
@@ -197,6 +140,7 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?garand", value="Garand ping", inline=True)
     embed.add_field(name="?ping", value="Check latency", inline=True)
     embed.add_field(name="?whoasked", value="Who asked?", inline=True)
+    embed.set_footer(text="Web Dashboard: http://wikibot.tech")
     await ctx.send(embed=embed)
 
 @client.command(brief='debug command')
@@ -333,15 +277,13 @@ async def babyhammer(ctx, *, user):
 @client.command(aliases=['8ball'], brief='Magic 8 Ball... also ?8ball')
 async def magic8ball(ctx, *, question):
     query=question
-    global odgovori
-    global answered
     alreadyanswered = answered.setdefault(str(ctx.message.author.id), ["a", "b"])
     if query.lower() in alreadyanswered:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["already_answered"])
     else:
-        answer = random.choice(odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else answers)
+        answer = random.choice(eightball.odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else eightball.answers)
         for i in range(10, 15):
-            if answer == (odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else answers)[i]:
+            if answer == (eightball.odgovori if guild_language.setdefault(str(ctx.guild.id), "en")=="hr" else eightball.answers)[i]:
                 await ctx.send(f'{answer}')
                 return
         alreadyanswered.append(str(query).lower())
@@ -351,20 +293,32 @@ async def magic8ball(ctx, *, question):
 
 @client.command(aliases=['cp', 'cropasta', 'pasta'], brief='Searches copy|cropasta for given query')
 async def copypasta(ctx, *, query):
-    maxlength=2000
+    maxlength=4000
     subreddit=None
     if ctx.message.content.startswith('?copypasta'):
         subreddit='copypasta'
+        color=0xFF5700
     elif ctx.message.content.startswith('?cropasta'):
         subreddit='cropasta'
+        color=0xFF0000
     else:
         subreddit=("cropasta" if guild_language.setdefault(str(ctx.guild.id), default_lang)=="hr" else "copypasta")
+        color=(0xFF5700 if subreddit == "copypasta" else 0xFF0000)
     for submission in reddit.subreddit(subreddit).search(query):
         textpost=submission.selftext
-        while len(textpost)>maxlength:
-            await ctx.send(textpost[:maxlength])
-            textpost=textpost[maxlength:]
-        await ctx.send(textpost)
+        if len(textpost)>maxlength:
+            textpost=textpost[maxlength-3:]+"..."
+        embed=discord.Embed(colour=color,
+                        title=submission.title,
+                        description=textpost,
+                        url=submission.url
+                        )
+        msg = await ctx.send(embed=embed)
+        subreddit_instance=reddit.subreddit(subreddit)
+        embed.set_author(name=subreddit_instance.display_name,
+                        icon_url=subreddit_instance.community_icon,
+                        url="https://www.reddit.com/{path}".format(path=subreddit_instance._path))
+        await msg.edit(embed=embed)
         break
 
 
@@ -384,7 +338,6 @@ async def hot(ctx, *, subreddit=None):
         except:
             await ownerdm.send('subsettings.json not found')
     query=subreddit
-    embed=discord.Embed(colour=discord.Colour.blue())
     if query == None:
         try:
             sub = str(subsettings[str(ctx.message.author.id)])
@@ -409,8 +362,14 @@ async def hot(ctx, *, subreddit=None):
         if not submission.is_self:
             print(submission.url)
             if "v.redd.it" not in submission.url and "youtu" not in submission.url and "imgur" not in submission.url and "vimeo" not in submission.url and "twitter" not in submission.url and "dailymotion" not in submission.url and "tiktok" not in submission.url and "gfycat" not in submission.url: #check for video content not supported in embed
+                embed=discord.Embed(colour=0xFF5700,
+                                    title=submission.title,
+                                    url=submission.url
+                                    )
                 embed.set_image(url=submission.url)
-                embed.set_author(name=submission.title)
+                embed.set_author(name=subreddit.display_name,
+                                icon_url=subreddit.community_icon,
+                                url="https://www.reddit.com/{path}".format(path=subreddit._path))
                 await ctx.send(embed=embed)
                 return
     await ctx.send("Not found.")
@@ -610,10 +569,14 @@ async def archivepins(ctx, channel_1=None, channel_2=None):
         pins = await channel1.pins()
         for pin in pins:
             text_message="> {message}".format(message=pin.content.replace("\n", "\n> "))
-            if not pin.attachments:
-                await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
-            else:
+            if pin.attachments:
                 await channel2.send("By <@!{userid}>\n{message}\n{attachment}".format(userid=pin.author.id, message=text_message, attachment=pin.attachments[0].url))
+            elif pin.embeds:
+                await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
+                await channel2.send(embed=pin.embeds[0])
+            else:
+                await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
+                
     else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_channel"])
 
@@ -729,6 +692,7 @@ async def vote(ctx):
 
 @client.event
 async def on_message(message):
+    await client.process_commands(message)
     global message_history
     check = len(message.content) < 30
     if message.author == client.user:
@@ -785,7 +749,7 @@ async def on_message(message):
             await message.channel.send(f'{message.content}')
             print(f'Repetition in {message.guild.name+" - "+message.channel.name}: {message.content}')
         message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
-    await client.process_commands(message)
+
 
 def sigterm(signal, frame):
     print("Graceful exit")

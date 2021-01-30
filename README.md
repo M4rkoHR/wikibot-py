@@ -40,6 +40,30 @@ Bot web dashboard: [WikiBot.tech](http://wikibot.tech/ "WikiBot Dashboard")
   
   
   
+  ## Add static response
+  
+  #### Bot responds with `response` if message is equal to `keyword` (can be multiple words, case insensitive)
+  
+  ?addresponsestatic|ars `keyword`;`response`
+  
+  
+  
+  ## Add dynamic response
+  
+  #### Bot responds with `response` if message contains `keyword` (can be multiple words, case insensitive)
+  
+  ?addresponsedynamic|ard `keyword`;`response`
+  
+  
+  
+  ## Remove a response
+  
+  #### Remove a static (`rrs`) or dynamic (`rrd`) response
+  
+  ?rrs|rrd `response`
+  
+  
+  
   ## urbanexample
   
   #### Gives an example for a given query from urban dictionary
@@ -111,5 +135,5 @@ Bot web dashboard: [WikiBot.tech](http://wikibot.tech/ "WikiBot Dashboard")
 
 # Deploy your own WikiBot
 
-## config.json
-Fill in your API keys, your Discord Account ID(for DM feedback), delete the comment after `"id" : your_discord_id_here` and rename to `my_config.json` to be picked up by the bot
+## settings.py
+Fill in your API keys, your Discord Account ID(for DM feedback) and run bot.py
