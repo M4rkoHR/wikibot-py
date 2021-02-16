@@ -19,6 +19,8 @@ def backup():
         conn.commit()
         cursor.close()
     conn.close()
+
+
 def restore(file=None):
     DATABASE_URL = os.environ['DATABASE_URL']
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -40,8 +42,11 @@ def restore(file=None):
         data = cursor.fetchall()
         conn.commit()
         cursor.close()
-        data=str(data)[2:-3]
-        data=literal_eval(data)
-        with open(restore_file, 'w') as json_file:
-            json.dump(data, json_file)
+        try:
+            data=str(data)[2:-3]
+            data=literal_eval(data)
+            with open(restore_file, 'w') as json_file:
+                json.dump(data, json_file)
+        except:
+            pass
     conn.close()

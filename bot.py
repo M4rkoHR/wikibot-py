@@ -45,7 +45,8 @@ subsettings = {}
 userwarns = {}
 guild_language = {} #guild language for every server, currently "hr" or "en"
 intents = discord.Intents(messages=True, guilds=True, members=True)
-client = commands.Bot(command_prefix = '?', intents=intents, help_command=None)
+client = commands.Bot(command_prefix = '?', intents=intents, help_command=None, case_insensitive=True)
+default_subreddits = ["dankmemes", "memes", "me_irl", "historymemes", "okbuddyretard", "dogelore", "dankchristianmemes"]
 language_not_supported = "That language is not supported yet, you can help translate WikiBot to your language by translating a small number of responses over on https://github.com/M4rkoHR/wikibot-py/blob/main/languages.json"
 
 @client.event
@@ -118,7 +119,7 @@ async def help(ctx, *, command=None):
     embed=discord.Embed(colour=0x0000ff,
                         title="WikiBot Help",
                         description="To know more about each command, type ?help `command`",
-                        url="http://wikibot.tech")
+                        url="https://wikibot.tech")
     embed.add_field(name="?yt `query`", value="YouTube search", inline=True)
     embed.add_field(name="?wiki `query`", value="Wikipedia search", inline=True)
     embed.add_field(name="?urban|ud `query`", value="Urban Dictionary search", inline=True)
@@ -140,7 +141,7 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?garand", value="Garand ping", inline=True)
     embed.add_field(name="?ping", value="Check latency", inline=True)
     embed.add_field(name="?whoasked", value="Who asked?", inline=True)
-    embed.set_footer(text="Web Dashboard: http://wikibot.tech")
+    embed.set_footer(text="Web Dashboard: https://wikibot.tech")
     await ctx.send(embed=embed)
 
 @client.command(brief='debug command')
@@ -325,6 +326,7 @@ async def copypasta(ctx, *, query):
 @client.command(aliases=['meme', 'reddit'], brief='Random post from given subreddit', description='Random post from subreddit <query> or if subreddit is left out it defaults to your desired setting in ?hotsource|memesource')
 async def hot(ctx, *, subreddit=None):
     global subsettings
+    msg = None
     try:
         subsettings = restore(file="subsettings.json")
     except Exception as e:
@@ -343,8 +345,8 @@ async def hot(ctx, *, subreddit=None):
             sub = str(subsettings[str(ctx.message.author.id)])
             print(f'{ctx.message.author.id}: {str(subsettings[str(ctx.message.author.id)])}')
         except:
-            await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_not_set"])
-            return
+            sub=random.choice(default_subreddits)
+            msg = await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_not_set"])
     else:
         sub = query.replace(' ', '')
         if sub.startswith("r/"):
@@ -370,7 +372,10 @@ async def hot(ctx, *, subreddit=None):
                 embed.set_author(name=subreddit.display_name,
                                 icon_url=subreddit.community_icon,
                                 url="https://www.reddit.com/{path}".format(path=subreddit._path))
-                await ctx.send(embed=embed)
+                if msg:
+                    await msg.edit(content=None, embed=embed)
+                else:
+                    await ctx.send(embed=embed)
                 return
     await ctx.send("Not found.")
 
@@ -381,10 +386,20 @@ async def memesource(ctx, *, subreddit):
     sub = query.replace(' ', '')
     if sub.startswith("r/"):
         sub=sub[2:]
+    if sub.lower()=="none":
+        try:
+            subsettings.pop(str(ctx.message.author.id))
+        except:
+            pass
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_removed"])
+        with open('subsettings.json', 'w') as json_file:
+            json.dump(subsettings, json_file)
+        if use_postgres: backup()
+        return
     try:
         if reddit.subreddit(sub).over18:
             pass
-        subsettings.update({str(ctx.message.author.id): str(query)})
+        subsettings.update({str(ctx.message.author.id): str(sub)})
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_success"].format(sub=sub))
     except:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_fail"])
@@ -684,7 +699,7 @@ async def removeresponse(ctx, *, response):
 
 @client.command(brief='Dashboard')
 async def website(ctx):
-    await ctx.send("http://wikibot.tech/")
+    await ctx.send("https://wikibot.tech/")
 
 @client.command(brief='Vote for bot')
 async def vote(ctx):
@@ -707,15 +722,51 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(responses[str(message.guild.id)]["dynamic"][key])
             return
-    
+    #wolfram
     if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
-        query = message.content.lower().split('s ', maxsplit=1)[1]
-        res = wolfram.query(query)
-        await message.channel.send(next(res.results).text)
+        embed=None
+        async with message.channel.typing():
+            query = message.content.lower().split('s ', maxsplit=1)[1]
+            res = wolfram.query(query)
+            pod=res.pods
+            title=next(pod).text
+            embed=discord.Embed(colour=0xff4500,
+                            title=title)
+            description=next(pod).text
+            for field in description.split("\n"):
+                if field.count("|")==1:
+                    field_list=field.split("|", maxsplit=1)
+                    while field_list[1].startswith(" "):
+                        field_list[1]=field_list[1][1:]
+                    embed.add_field(name=field_list[0], value=field_list[1])
+                else:
+                    if embed.description==discord.Embed.Empty:
+                        embed.description=field+"\n"
+                    else:
+                        embed.description+=field+"\n"
+        await message.channel.send(embed=embed)
         return
     if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
-        res = wolfram.query(message.content.lower().split(' je ')[1])
-        await message.channel.send(next(res.results).text)
+        embed=None
+        async with message.channel.typing():
+            res = wolfram.query(message.content.lower().split(' je ', maxsplit=1)[1])
+            pod=res.pods
+            title=next(pod).text
+            embed=discord.Embed(colour=0xff4500,
+                            title=title)
+            description=next(pod).text
+            for field in description.split("\n"):
+                if field.count("|")==1:
+                    field_list=field.split("|", maxsplit=1)
+                    while field_list[1].startswith(" "):
+                        field_list[1]=field_list[1][1:]
+                    embed.add_field(name=field_list[0], value=field_list[1])
+                else:
+                    if embed.description==discord.Embed.Empty:
+                        embed.description=field+"\n"
+                    else:
+                        embed.description+=field+"\n"
+        await message.channel.send(embed=embed)
         return
     #dadbot
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(str(message.guild.id), False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not (guild_language.setdefault(str(message.guild.id), "en")=="hr"))) and check:
