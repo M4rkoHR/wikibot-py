@@ -6,10 +6,12 @@ import json
 import TopGG
 import signal
 import random
+import asyncio
 import discord
 import settings
-import wikipedia
 import eightball
+import wikipedia
+import threading
 import wolframalpha
 from time import sleep
 import urbandictionary as ud
@@ -44,10 +46,12 @@ answered = {}
 subsettings = {}
 userwarns = {}
 guild_language = {} #guild language for every server, currently "hr" or "en"
+misc={}
 intents = discord.Intents(messages=True, guilds=True, members=True)
 client = commands.Bot(command_prefix = '?', intents=intents, help_command=None, case_insensitive=True)
 default_subreddits = ["dankmemes", "memes", "me_irl", "historymemes", "okbuddyretard", "dogelore", "dankchristianmemes"]
 language_not_supported = "That language is not supported yet, you can help translate WikiBot to your language by translating a small number of responses over on https://github.com/M4rkoHR/wikibot-py/blob/main/languages.json"
+started=False
 
 @client.event
 async def on_ready():
@@ -106,11 +110,23 @@ async def on_ready():
         await ownerdm.send('warns.json loaded')
     except:
         await ownerdm.send('warns.json not found')
+    try:
+        global misc
+        with open('misc.json') as json_file:
+            misc = json.load(json_file)
+        try:
+            await ownerdm.send(f'misc:\n```{misc}```')
+        except:
+            await ownerdm.send(f'misc:\n```file too large```')
+    except:
+        await ownerdm.send('misc.json not found')
     if use_topgg:
         TopGG.setup(client=client)
         await ownerdm.send('Setting up TopGG cog')
     await ownerdm.send('Done')
     if use_postgres: backup()
+    global started
+    started=True
     print("Done")
 
 
@@ -132,7 +148,7 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?changelang `language`", value="Change bot language to a supported language", inline=True)
     embed.add_field(name="?clearwarns `@user`", value="Clear user's warns", inline=True)
     embed.add_field(name="?lang", value="Check WikiBot language for current server", inline=True)
-    embed.add_field(name="?subreddit | memesource | hotsource `subreddit`", value="Set a default subreddit for an empty `?hot | meme | reddit` command (with no arguments)", inline=True)
+    embed.add_field(name="?subscribe | subreddit | `subreddit`", value="Add `subreddit` to a list of subscribed subreddits used for an empty `?reddit | hot | meme` command (with no arguments)", inline=True)
     embed.add_field(name="?archivepins|ap `#source-channel` `#target-channel`", value="Archives pins from `#source-channel` into `#target-channel`", inline=True)
     embed.add_field(name="?send `#target-channel` `message`", value="Sends `message` to `#target-channel`", inline=True)
     embed.add_field(name="?ars `keyword`;`response`", value="Bot responds with `response` if message is equal to `keyword` (case insensitive)", inline=True)
@@ -141,6 +157,7 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?garand", value="Garand ping", inline=True)
     embed.add_field(name="?ping", value="Check latency", inline=True)
     embed.add_field(name="?whoasked", value="Who asked?", inline=True)
+    embed.add_field(name="?toggle `feature`", value="Toggle features such as `dadbot`,`repeat` and `wolfram`/`what is`", inline=True)
     embed.set_footer(text="Web Dashboard: https://wikibot.tech")
     await ctx.send(embed=embed)
 
@@ -155,6 +172,7 @@ async def d(ctx, *, string):
         await ownerdm.send(file=discord.File('subsettings.json'))
         await ownerdm.send(file=discord.File('warns.json'))
         await ownerdm.send(file=discord.File('responses.json'))
+        await ownerdm.send(file=discord.File('misc.json'))
         return
     command = f"{str(string)}"
     await ctx.send(f'{command}')
@@ -342,8 +360,8 @@ async def hot(ctx, *, subreddit=None):
     query=subreddit
     if query == None:
         try:
-            sub = str(subsettings[str(ctx.message.author.id)])
-            print(f'{ctx.message.author.id}: {str(subsettings[str(ctx.message.author.id)])}')
+            sub = random.choice(subsettings[str(ctx.message.author.id)])
+            print(f'{ctx.message.author.id}: {sub}')
         except:
             sub=random.choice(default_subreddits)
             msg = await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_not_set"])
@@ -380,7 +398,7 @@ async def hot(ctx, *, subreddit=None):
     await ctx.send("Not found.")
 
 
-@client.command(aliases=['hotsource', 'redditsource', 'subreddit'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
+@client.command(aliases=['hotsource', 'redditsource', 'subreddit', 'subscribe'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
 async def memesource(ctx, *, subreddit):
     query=subreddit
     sub = query.replace(' ', '')
@@ -399,7 +417,9 @@ async def memesource(ctx, *, subreddit):
     try:
         if reddit.subreddit(sub).over18:
             pass
-        subsettings.update({str(ctx.message.author.id): str(sub)})
+        if str(ctx.message.author.id) not in subsettings:
+            subsettings[str(ctx.message.author.id)]=[]
+        subsettings[str(ctx.message.author.id)].append(sub)
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_success"].format(sub=sub))
     except:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_fail"])
@@ -407,6 +427,46 @@ async def memesource(ctx, *, subreddit):
         json.dump(subsettings, json_file)
     if use_postgres: backup()
 
+@client.command(aliases=['subreddits', 'mysubs'])
+async def subs(ctx):
+    try:
+        subsettings = restore(file="subsettings.json")
+    except Exception as e:
+        await ownerdm.send("Unable to restore subsettings.json:\n{exception}".format(exception=e))
+        restore()
+        try:
+            with open('subsettings.json') as json_file:
+                subsettings = json.load(json_file)
+            await ownerdm.send('subsettings.json loaded')
+            await ownerdm.send(f'subsettings:\n```{subsettings}```')
+        except:
+            await ownerdm.send('subsettings.json not found')
+    embed=discord.Embed(
+        colour=0x7289da,
+        title=("Your Subreddits" if guild_language.setdefault(str(ctx.guild.id), "en")=="en" else "Vaši Subredditi"),
+        description="\n".join(subsettings[str(ctx.message.author.id)]) if str(ctx.message.author.id) in subsettings else ("You are subscribed to no subreddits" if guild_language.setdefault(str(ctx.guild.id), "en")=="en" else "Niste se pretplatili na nijedan subreddit")
+    )
+    embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
+    await ctx.send(embed=embed)
+        
+
+@client.command(aliases=['unsub', 'removesub'])
+async def unsubscribe(ctx, *, sub):
+    sub=sub.replace(" ", "")
+    if sub.startswith("r/"):
+        sub=sub[2:]
+    try:
+        if reddit.subreddit(sub).over18:
+            pass
+        if str(ctx.message.author.id) not in subsettings:
+            raise Exception
+        subsettings[str(ctx.message.author.id)].remove(sub)
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["remove_sub_success"].format(sub=sub))
+    except:
+        await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["remove_sub_fail"])
+    with open('subsettings.json', 'w') as json_file:
+        json.dump(subsettings, json_file)
+    if use_postgres: backup()
 
 @client.command(aliases=['tkojepitao', 'tkojepito'], brief='Nobody asked')
 async def whoasked(ctx):
@@ -586,11 +646,11 @@ async def archivepins(ctx, channel_1=None, channel_2=None):
             text_message="> {message}".format(message=pin.content.replace("\n", "\n> "))
             if pin.attachments:
                 await channel2.send("By <@!{userid}>\n{message}\n{attachment}".format(userid=pin.author.id, message=text_message, attachment=pin.attachments[0].url))
-            elif pin.embeds:
+            elif not pin.embeds:
                 await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
-                await channel2.send(embed=pin.embeds[0])
             else:
                 await channel2.send("By <@!{userid}>\n{message}".format(userid=pin.author.id, message=text_message))
+                await channel2.send(embed=pin.embeds[0])
                 
     else:
         await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["specify_channel"])
@@ -632,7 +692,6 @@ async def addresponsestatic(ctx, *, response):
     responses[str(ctx.guild.id)]["static"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
         json.dump(responses, json_file)
-    await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["static_response_added"].format(value=value, key=key))
     if use_postgres: backup()
 
@@ -662,7 +721,6 @@ async def addresponsedynamic(ctx, *, response):
     responses[str(ctx.guild.id)]["dynamic"].update({key.lower(): value})
     with open('responses.json', 'w') as json_file:
         json.dump(responses, json_file)
-    await ownerdm.send(file=discord.File('responses.json'))
     await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["dynamic_response_added"].format(value=value, key=key))
     if use_postgres: backup()
 
@@ -705,14 +763,37 @@ async def website(ctx):
 async def vote(ctx):
     await ctx.send("https://top.gg/bot/720738328714018816/vote")
 
+@client.command(brief='Vote for bot')
+async def toggle(ctx, *, parameter):
+    if "dad" in parameter:
+        if misc["dadbot"].setdefault(str(ctx.guild.id), True):
+            misc["dadbot"][str(ctx.guild.id)]=False
+            await ctx.send("Dadbot off ⛔")
+        else:
+            misc["dadbot"][str(ctx.guild.id)]=True
+            await ctx.send("Dadbot on ✅")
+    if "repeat" in parameter:
+        if misc["repeat"].setdefault(str(ctx.guild.id), True):
+            misc["repeat"][str(ctx.guild.id)]=False
+            await ctx.send("Repeat off ⛔")
+        else:
+            misc["repeat"][str(ctx.guild.id)]=True
+            await ctx.send("Repeat on ✅")
+    if "wolfram" in parameter or "what is" in parameter:
+        if misc["wolfram"].setdefault(str(ctx.guild.id), True):
+            misc["wolfram"][str(ctx.guild.id)]=False
+            await ctx.send("Wolfram off ⛔")
+        else:
+            misc["wolfram"][str(ctx.guild.id)]=True
+            await ctx.send("Wolfram on ✅")
+
 @client.event
 async def on_message(message):
+    if message.author == client.user:
+        return
     await client.process_commands(message)
     global message_history
     check = len(message.content) < 30
-    if message.author == client.user:
-        return
-
     for key in responses.get(str(message.guild.id), {"static": {}})["static"]:
         if key == message.content.lower():
             await message.channel.send(responses[str(message.guild.id)]["static"][key])
@@ -722,84 +803,55 @@ async def on_message(message):
         if key in message.content.lower():
             await message.channel.send(responses[str(message.guild.id)]["dynamic"][key])
             return
-    #wolfram
-    if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
-        embed=None
-        async with message.channel.typing():
-            query = message.content.lower().split('s ', maxsplit=1)[1]
-            res = wolfram.query(query)
-            pod=res.pods
-            title=next(pod).text
-            embed=discord.Embed(colour=0xff4500,
-                            title=title)
-            description=next(pod).text
-            for field in description.split("\n"):
-                if field.count("|")==1:
-                    field_list=field.split("|", maxsplit=1)
-                    while field_list[1].startswith(" "):
-                        field_list[1]=field_list[1][1:]
-                    embed.add_field(name=field_list[0], value=field_list[1])
-                else:
-                    if embed.description==discord.Embed.Empty:
-                        embed.description=field+"\n"
-                    else:
-                        embed.description+=field+"\n"
-        await message.channel.send(embed=embed)
-        return
-    if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
-        embed=None
-        async with message.channel.typing():
-            res = wolfram.query(message.content.lower().split(' je ', maxsplit=1)[1])
-            pod=res.pods
-            title=next(pod).text
-            embed=discord.Embed(colour=0xff4500,
-                            title=title)
-            description=next(pod).text
-            for field in description.split("\n"):
-                if field.count("|")==1:
-                    field_list=field.split("|", maxsplit=1)
-                    while field_list[1].startswith(" "):
-                        field_list[1]=field_list[1][1:]
-                    embed.add_field(name=field_list[0], value=field_list[1])
-                else:
-                    if embed.description==discord.Embed.Empty:
-                        embed.description=field+"\n"
-                    else:
-                        embed.description+=field+"\n"
-        await message.channel.send(embed=embed)
-        return
+    
     #dadbot
     if ((message.content.lower().startswith('ja sam ') and len(message.content) > 7 and guild_language.setdefault(str(message.guild.id), False)) or (message.content.lower().replace('\'', '').startswith('im ') and len(message.content) > 3 and not (guild_language.setdefault(str(message.guild.id), "en")=="hr"))) and check:
-            await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
+            if misc["dadbot"].get(str(message.guild.id), True):
+                await message.channel.send((f'Bok {message.content[7:]}, ja sam tata') if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" else (f'Hi {str(message.content)[4:] if ord(str(message.content)[1]) == 39 else str(message.content)[3:]}, I\'m dad'))
             return
+    
+    if started:
 
+        #wolfram
+        if misc["wolfram"].get(str(message.guild.id), True):
+            if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
+                await message.channel.trigger_typing()
+                thread = threading.Thread(target=wolfram_query, args=('s ', message.content.lower(), message.channel.id,))
+                thread.start()
+                return
+            if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
+                await message.channel.trigger_typing()
+                thread = threading.Thread(target=wolfram_query, args=(' je ', message.content.lower(), message.channel.id,))
+                thread.start()
+                return
 
-    # repeat messages
-    if not message.content.startswith('?'):
-        #print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
-        Channel = message_history.setdefault(message.channel.id, [None, None, None])
-        if Channel == [None, None, None]:
-            # Channel = [message.content, None, None]
-            counter=0
-            first=True
-            try:
-                async for messages in client.get_channel(message.channel.id).history(limit=4):
-                    if first:
-                        first=False                        
-                    else:
-                        message_history[message.channel.id][counter]=messages.content
-                        counter += 1
-                # print("Added channel {channel} from server {guild}".format(channel=message.channel.name, guild=message.guild.name))
-            except discord.NoMoreItems:
-                print("NoMoreItems 757")
-            except:
-                print("Exception 759")
-        Channel = message_history.setdefault(message.channel.id, [None, None, None])
-        #print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
-        if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content and message.content != "":
-            await message.channel.send(f'{message.content}')
-            print(f'Repetition in {message.guild.name+" - "+message.channel.name}: {message.content}')
-        message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
+        
+        # repeat messages
+        if not message.content.startswith('?') and misc["repeat"].get(str(message.guild.id), True):
+            #print(f'{message.guild.name} - {message.channel.name}({str(message.channel.id)})')
+            Channel = message_history.setdefault(message.channel.id, [None, None, None])
+            if Channel == [None, None, None]:
+                # Channel = [message.content, None, None]
+                counter=0
+                first=True
+                try:
+                    async for messages in client.get_channel(message.channel.id).history(limit=4):
+                        if first:
+                            first=False                        
+                        else:
+                            message_history[message.channel.id][counter]=messages.content
+                            counter += 1
+                    # print("Added channel {channel} from server {guild}".format(channel=message.channel.name, guild=message.guild.name))
+                except discord.NoMoreItems:
+                    print("NoMoreItems")
+                except:
+                    print("idk lol")
+            Channel = message_history.setdefault(message.channel.id, [None, None, None])
+            #print(f'{message.author.name}#@{message.author.discriminator}: {message.content}')
+            if Channel[0] == message.content and Channel[1] == message.content and Channel[2] != message.content and message.content != "":
+                await message.channel.send(f'{message.content}')
+                print(f'Repetition in {message.guild.name+" - "+message.channel.name}: {message.content}')
+            message_history[message.channel.id] = [message.content, Channel[0], Channel[1]]
 
 
 def sigterm(signal, frame):
@@ -808,6 +860,29 @@ def sigterm(signal, frame):
     if use_postgres:
         backup()"""
 
+
+def wolfram_query(sep, msg, channelid):
+    channel=client.get_channel(channelid)
+    embed=None
+    query = msg.split(sep, maxsplit=1)[1]
+    res = wolfram.query(query)
+    pod=res.pods
+    title=next(pod).text
+    embed=discord.Embed(colour=0xff4500,
+                    title=title)
+    description=next(pod).text
+    for field in description.split("\n"):
+        if field.count("|")==1:
+            field_list=field.split("|", maxsplit=1)
+            while field_list[1].startswith(" "):
+                field_list[1]=field_list[1][1:]
+            embed.add_field(name=field_list[0], value=field_list[1])
+        else:
+            if embed.description==discord.Embed.Empty:
+                embed.description=field+"\n"
+            else:
+                embed.description+=field+"\n"
+    client.loop.create_task(channel.send(embed=embed))
 
 signal.signal(signal.SIGTERM, sigterm)
 client.run(token)
