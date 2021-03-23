@@ -362,6 +362,13 @@ async def hot(ctx, *, subreddit=None):
         try:
             sub = random.choice(subsettings[str(ctx.message.author.id)])
             print(f'{ctx.message.author.id}: {sub}')
+            if reddit.subreddit(sub).over18 and not ctx.channel.is_nsfw():
+                sublist=list(subsettings[str(ctx.message.author.id)])
+                random.shuffle(sublist)
+                for choice in sublist:
+                    if not reddit.subreddit(choice).over18:
+                        sub=choice
+                        break
         except:
             sub=random.choice(default_subreddits)
             msg = await ctx.send(languages[guild_language.setdefault(str(ctx.guild.id), "en")]["default_sub_not_set"])
@@ -398,7 +405,7 @@ async def hot(ctx, *, subreddit=None):
     await ctx.send("Not found.")
 
 
-@client.command(aliases=['hotsource', 'redditsource', 'subreddit', 'subscribe'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
+@client.command(aliases=['hotsource', 'redditsource', 'subreddit', 'subscribe', 'sub'], brief='Changes source subreddit for an empty ?hot|meme comamnd')
 async def memesource(ctx, *, subreddit):
     query=subreddit
     sub = query.replace(' ', '')
