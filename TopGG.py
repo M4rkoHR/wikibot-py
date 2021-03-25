@@ -11,8 +11,12 @@ class TopGG(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.token = settings.TopGGtoken # set this to your DBL token
+        self.update_stats.start()
+
+    def cog_unload(self):
+        self.update_stats.cancel()
     
-    @tasks.loop(minutes=30.0)
+    @tasks.loop(minutes=15.0)
     async def update_stats(self):
         header={"Authorization": self.token}
         print('Attempting to post server count')
