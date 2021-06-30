@@ -811,7 +811,7 @@ async def toggle(ctx, *, parameter):
 @client.command(aliases=['fixlink'], brief='Fix media.discordapp.net link (embed)')
 async def fix(ctx, *, link):
     await ctx.message.delete()
-    if "media.discord.net" in link:
+    if "media.discordapp.net" in link:
         await ctx.send(link.replace("media.discordapp.net", "cdn.discordapp.com"))
         return
     await ctx.send("Invalid link!", delete_after=5)
