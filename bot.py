@@ -764,11 +764,24 @@ async def removeresponse(ctx, *, response):
 
 @client.command(brief='Dashboard')
 async def website(ctx):
-    await ctx.send("https://wikibot.tech/")
+    embed=discord.Embed(colour=0x87ceeb,
+                        title="WikiBot Web Dashboard",
+                        url="https://wikibot.tech/")
+    await ctx.send(embed=embed)
 
 @client.command(brief='Vote for bot')
 async def vote(ctx):
-    await ctx.send("https://top.gg/bot/720738328714018816/vote")
+    embed=discord.Embed(colour=0x87ceeb,
+                        title="Vote for WikiBot",
+                        url="https://top.gg/bot/720738328714018816/vote")
+    await ctx.send(embed=embed)
+
+@client.command(brief='Invite bot')
+async def invite(ctx):
+    embed=discord.Embed(colour=0x87ceeb,
+                        title="Invite WikiBot",
+                        url="https://top.gg/bot/720738328714018816/invite")
+    await ctx.send(embed=embed)
 
 @client.command(brief='Vote for bot')
 async def toggle(ctx, *, parameter):
@@ -793,6 +806,17 @@ async def toggle(ctx, *, parameter):
         else:
             misc["wolfram"][str(ctx.guild.id)]=True
             await ctx.send("Wolfram on ✅")
+
+
+@client.command(aliases=['fixlink'], brief='Fix media.discordapp.net link (embed)')
+async def fix(ctx, *, link):
+    await ctx.message.delete()
+    if "media.discord.net" in link:
+        await ctx.send(link.replace("media.discordapp.net", "cdn.discordapp.com"))
+        return
+    await ctx.send("Invalid link!", delete_after=5)
+    return
+
 
 @client.event
 async def on_message(message):
@@ -823,12 +847,12 @@ async def on_message(message):
         if misc["wolfram"].get(str(message.guild.id), True):
             if guild_language.setdefault(str(message.guild.id), default_lang)=="en" and (message.content.lower().startswith('what is') or message.content.lower().startswith('what\'s') or message.content.lower().startswith('whats') or message.content.lower().startswith('how much is')):
                 await message.channel.trigger_typing()
-                thread = threading.Thread(target=wolfram_query, args=('s ', message.content.lower(), message.channel.id,))
+                thread = threading.Thread(target=wolfram_query, args=('s ', message.content.lower(), message,))
                 thread.start()
                 return
             if guild_language.setdefault(str(message.guild.id), default_lang)=="hr" and (message.content.lower().startswith('kolko je') or message.content.lower().startswith('koliko je') or message.content.lower().startswith('šta je')):
                 await message.channel.trigger_typing()
-                thread = threading.Thread(target=wolfram_query, args=(' je ', message.content.lower(), message.channel.id,))
+                thread = threading.Thread(target=wolfram_query, args=(' je ', message.content.lower(), message,))
                 thread.start()
                 return
 
@@ -868,28 +892,92 @@ def sigterm(signal, frame):
         backup()"""
 
 
-def wolfram_query(sep, msg, channelid):
+def wolfram_query(sep, msg, ctx):
+    channelid=ctx.channel.id
     channel=client.get_channel(channelid)
     embed=None
     query = msg.split(sep, maxsplit=1)[1]
-    res = wolfram.query(query)
-    pod=res.pods
-    title=next(pod).text
-    embed=discord.Embed(colour=0xff4500,
-                    title=title)
-    description=next(pod).text
-    for field in description.split("\n"):
-        if field.count("|")==1:
-            field_list=field.split("|", maxsplit=1)
-            while field_list[1].startswith(" "):
-                field_list[1]=field_list[1][1:]
-            embed.add_field(name=field_list[0], value=field_list[1])
-        else:
-            if embed.description==discord.Embed.Empty:
-                embed.description=field+"\n"
+    try:
+        res = wolfram.query(query)
+        pod=res.pods
+        title=next(pod).text
+        embed=discord.Embed(colour=0xff4500,
+                        title=title)
+        description=next(pod).text
+        for field in description.split("\n"):
+            if field.count("|")==1:
+                field_list=field.split("|", maxsplit=1)
+                while field_list[1].startswith(" "):
+                    field_list[1]=field_list[1][1:]
+                embed.add_field(name=field_list[0], value=field_list[1])
             else:
-                embed.description+=field+"\n"
-    client.loop.create_task(channel.send(embed=embed))
+                if embed.description==discord.Embed.Empty:
+                    embed.description=field+"\n"
+                else:
+                    embed.description+=field+"\n"
+        embed.set_footer(text="from Wolfram",
+                                icon_url="https://cdn.discordapp.com/attachments/795406810844495944/839226953206595654/wolfram.png")
+        client.loop.create_task(channel.send(embed=embed))
+        return
+    except:
+        pass
+    try:
+        urbandefinition = ud.define(query)
+        ud_definition=urbandefinition[0].definition.replace('[', '').replace(']', '')
+        if len(ud_definition)>1024:
+            ud_definition=ud_definition[:1021]+"..."
+        embed=discord.Embed(colour=0xe86222,
+                            title=urbandefinition[0].word,
+                            url="https://www.urbandictionary.com/define.php?term={word}".format(word=urbandefinition[0].word.replace(" ", "%20")))
+        embed.add_field(name="Definition", value=ud_definition, inline=False)
+        embed.set_footer(text="from Urban Dictionary",
+                            icon_url="https://cdn.discordapp.com/attachments/795406810844495944/799297576766799882/ud.png")
+        client.loop.create_task(channel.send(embed=embed))
+        return
+    except:
+        pass
+    try:
+        global wikipedia_language
+        try:
+            wikipedia_language = restore(file="wikipedia_language.json")
+        except Exception as e:
+            print("Unable to restore Wikipedia languages: \n{exception}".format(exception=e))
+            restore()
+            try:
+                with open('wikipedia_language.json') as json_file:
+                    wikipedia_language = json.load(json_file)
+                print('wikipedia_language.json loaded')
+                print(f'wikipedia_language:\n```{wikipedia_language}```')
+            except:
+                print('wikipedia_language.json not found')
+        page=None
+        wikipedia.set_lang(str(wikipedia_language.setdefault(str(ctx.author.id), guild_language.get(str(ctx.guild.id), "en"))))
+        try:
+            page=wikipedia.page(wikipedia.search(query)[0])
+        except wikipedia.exceptions.DisambiguationError as e:
+            counter=0
+            while page==None:
+                try:
+                    page=wikipedia.page(e.options[counter])
+                except:
+                    counter+=1
+        summary=page.summary.split("\n")[0]
+        if len(summary)>2048:
+            summary=summary[:2045]+"..."
+        embed=discord.Embed(colour=0xfefefe,
+                            title=page.title,
+                            description=summary,
+                            url=page.url,)
+        embed.set_footer(text="from Wikipedia",
+                        icon_url="https://cdn.discordapp.com/attachments/601676952134221845/799319569025335406/wikipedia.png")
+        if page.images:
+            embed.set_thumbnail(url=page.images[0])
+        client.loop.create_task(channel.send(embed=embed))
+        return
+    except:
+        pass
+                
+
 
 signal.signal(signal.SIGTERM, sigterm)
 client.run(token)
