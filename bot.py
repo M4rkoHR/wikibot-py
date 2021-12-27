@@ -59,7 +59,7 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('------')
-    await client.change_presence(activity=discord.Game(name='wikibot.tech | ?help'))
+    await client.change_presence(activity=discord.Game(name='wikibot.me | ?help'))
     global ownerdm
     ownerdm = client.get_user(ownerid)
     try:
@@ -135,7 +135,7 @@ async def help(ctx, *, command=None):
     embed=discord.Embed(colour=0x0000ff,
                         title="WikiBot Help",
                         description="To know more about each command, type ?help `command`",
-                        url="https://wikibot.tech")
+                        url="https://wikibot.me")
     embed.add_field(name="?yt `query`", value="YouTube search", inline=True)
     embed.add_field(name="?wiki `query`", value="Wikipedia search", inline=True)
     embed.add_field(name="?urban|ud `query`", value="Urban Dictionary search", inline=True)
@@ -158,7 +158,7 @@ async def help(ctx, *, command=None):
     embed.add_field(name="?ping", value="Check latency", inline=True)
     embed.add_field(name="?whoasked", value="Who asked?", inline=True)
     embed.add_field(name="?toggle `feature`", value="Toggle features such as `dadbot`,`repeat` and `wolfram`/`what is`", inline=True)
-    embed.set_footer(text="Web Dashboard: https://wikibot.tech")
+    embed.set_footer(text="Web Dashboard: https://wikibot.me")
     await ctx.send(embed=embed)
 
 @client.command(brief='debug command')
@@ -766,7 +766,7 @@ async def removeresponse(ctx, *, response):
 async def website(ctx):
     embed=discord.Embed(colour=0x87ceeb,
                         title="WikiBot Web Dashboard",
-                        url="https://wikibot.tech/")
+                        url="https://wikibot.me/")
     await ctx.send(embed=embed)
 
 @client.command(brief='Vote for bot')
